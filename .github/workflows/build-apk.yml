@@ -28,6 +28,7 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # ⚡ تسريع 1: حفظ ملفات Gradle
       - name: Cache Gradle
         uses: actions/cache@v3
         with:
@@ -38,10 +39,30 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # ⚡ تسريع 2: حفظ مكتبات Flutter
+      - name: Cache Pub
+        uses: actions/cache@v3
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # ⚡ تسريع 3: حفظ محرك الأندرويد (NDK) و CMake (هذا هو سر الـ 17 دقيقة)
+      - name: Cache NDK and CMake
+        uses: actions/cache@v3
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk
+            /usr/local/lib/android/sdk/cmake
+          key: ${{ runner.os }}-ndk-cmake
+          restore-keys: |
+            ${{ runner.os }}-ndk-cmake
+
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      # ✅ تعديل الـ Manifest باستخدام Python لضمان سلامة الـ XML
+      # إصلاح Manifest باستخدام Python لضمان سلامة الـ XML
       - name: Fix App Name, Permissions, and Exported
         run: |
           python3 -c '
@@ -70,14 +91,10 @@ jobs:
                       ET.SubElement(root, "uses-permission", {"{http://schemas.android.com/apk/res/android}name": full_p})
                       
               tree.write(path, encoding="utf-8", xml_declaration=True)
-              print("Manifest updated successfully!")
-          else:
-              print("Manifest not found!")
           '
 
       - name: Fix Gradle Config (Package, MinSdk, Proguard)
         run: |
-          # 1. إجبار اسم الحزمة و minSdk وإيقاف الحماية (Proguard) لمنع الإغلاق المفاجئ
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/applicationId = ".*"/applicationId = "com.example.video_meet_app"/g' android/app/build.gradle.kts
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle.kts
