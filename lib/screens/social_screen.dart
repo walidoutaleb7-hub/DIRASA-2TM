@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -15,21 +17,10 @@ class _SocialScreenState extends State<SocialScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   void _startChat(String otherUserId, String otherUserName) {
-    // إنشاء معرف محادثة فريد يعتمد على ترتيب الأسماء ليكون ثابتاً دائماً
     String chatId = currentUserId.compareTo(otherUserId) < 0 
         ? '${currentUserId}_$otherUserId' 
         : '${otherUserId}_$currentUserId';
-        
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatRoomScreen(
-          chatId: chatId,
-          otherUserName: otherUserName,
-          otherUserId: otherUserId,
-        ),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(chatId: chatId, otherUserName: otherUserName, otherUserId: otherUserId)));
   }
 
   @override
@@ -39,12 +30,8 @@ class _SocialScreenState extends State<SocialScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: _db.collection('users').where('uid', isNotEqualTo: currentUserId).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('لا يوجد زملاء مسجلين بعد', style: TextStyle(color: AppTheme.textSecondary)));
-          }
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لا يوجد زملاء مسجلين بعد'));
 
           var users = snapshot.data!.docs;
 
@@ -53,15 +40,22 @@ class _SocialScreenState extends State<SocialScreen> {
             itemCount: users.length,
             itemBuilder: (context, index) {
               var user = users[index].data() as Map<String, dynamic>;
+              
+              Uint8List? imageBytes;
+              if (user['profileImage'] != null && user['profileImage'].toString().isNotEmpty) {
+                imageBytes = base64Decode(user['profileImage']);
+              }
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppTheme.accentColor.withOpacity(0.1),
-                    child: Text(user['name'][0].toUpperCase(), style: const TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.bold)),
+                    backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                    backgroundImage: imageBytes != null ? MemoryImage(imageBytes) : null,
+                    child: imageBytes == null ? Text(user['name'][0].toUpperCase(), style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)) : null,
                   ),
                   title: Text(user['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('عضو في DIRASA 2TM'),
+                  subtitle: Text(user['status'] ?? 'متاح للدراسة', style: const TextStyle(color: AppTheme.textSecondary)),
                   trailing: IconButton(
                     icon: const Icon(Icons.message_outlined, color: AppTheme.primaryColor),
                     onPressed: () => _startChat(user['uid'], user['name']),

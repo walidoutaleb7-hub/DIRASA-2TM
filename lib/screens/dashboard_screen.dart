@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
 import 'settings_screen.dart';
+import 'profile_screen.dart';
 import 'social_screen.dart';
 import 'chat_list_screen.dart';
 import 'ai_screen.dart';
@@ -83,7 +84,7 @@ class _HomeTabState extends State<HomeTab> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DIRASA 2TM'),
-        actions: [IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())))],
+        actions: [IconButton(icon: const Icon(Icons.person_outline), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))), IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())))],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
