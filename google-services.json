@@ -1,44 +1,26 @@
 {
   "project_info": {
-    "project_number": "558581938395",
-    "project_id": "weura-ai-dda2a",
-    "storage_bucket": "weura-ai-dda2a.firebasestorage.app"
+    "project_number": "745868828443",
+    "project_id": "dirasa-2tm",
+    "storage_bucket": "dirasa-2tm.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:558581938395:android:039ba73a91d987a7c974fe",
+        "mobilesdk_app_id": "1:745868828443:android:c519ed6aec4c06d34a3dbe",
         "android_client_info": {
-          "package_name": "com.weura"
+          "package_name": "com.example.video_meet_app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "558581938395-r6mt50bk11bjkkq12p34r3ponkbeqluv.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.weura",
-            "certificate_hash": "a9c582d2ef2690165c6696eb114797770d8a5614"
-          }
-        },
-        {
-          "client_id": "558581938395-hfmj12mk93vha0he65n8k0n1hit0udum.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB0qSDrPhXkzbCA2MDja2Uk6EYbtD7CI4E"
+          "current_key": "AIzaSyCD2YKnMatsBWMrXh3xg_z_gbs0MYiLs_o"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "558581938395-hfmj12mk93vha0he65n8k0n1hit0udum.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
