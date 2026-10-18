@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,21 +43,16 @@ jobs:
 
       - name: Setup Firebase Config
         run: |
-          # التحقق من وجود الملف أولاً
           if [ ! -f google-services.json ]; then
-            echo "ERROR: google-services.json is missing from the repository root!"
+            echo "ERROR: google-services.json is missing!"
             exit 1
           fi
-          echo "google-services.json found. Copying..."
           cp google-services.json android/app/google-services.json
-          
-          # إعدادات Firebase Gradle
           if [ -f android/settings.gradle.kts ]; then
             sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services") version "4.4.1" apply false/' android/settings.gradle.kts
           elif [ -f android/settings.gradle ]; then
             sed -i 's/plugins {/plugins {\n    id "com.google.gms.google-services" version "4.4.1" apply false/' android/settings.gradle
           fi
-          
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts
           elif [ -f android/app/build.gradle ]; then
@@ -77,11 +75,9 @@ jobs:
             sed -i 's/compileSdkVersion flutterCompileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
             sed -i 's/compileSdkVersion 3[0-9]/compileSdkVersion 36/g' android/app/build.gradle
           fi
-
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutterCompileSdkVersion/compileSdkVersion 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion 3[0-9]/compileSdkVersion 36/g' {} +
-          
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = flutterCompileSdkVersion/compileSdk = 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = 3[0-9]/compileSdk = 36/g' {} +
@@ -92,10 +88,15 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload APK to Release
+        uses: ncipollo/release-action@v1
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
-          retention-days: 7
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: "v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Build ${{ github.run_number }}"
+          body: "تطبيق DIRASA 2TM - تم البناء تلقائياً"
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          replacesArtifacts: true
