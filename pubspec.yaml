@@ -11,3 +11,15 @@ dependencies:
     sdk: flutter
   zego_uikit_prebuilt_video_conference: ^2.10.3
   shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/app_icon.png"
+  adaptive_icon_background: "#1E293B" # لون الخلفية الداكنة المشابه للأيقونة
+  adaptive_icon_foreground: "assets/app_icon.png"
