@@ -5,6 +5,10 @@ import 'conference_screen.dart';
 import 'settings_screen.dart';
 import 'social_screen.dart';
 import 'chat_list_screen.dart';
+import 'ai_screen.dart';
+import 'leaderboard_screen.dart';
+import 'whiteboard_screen.dart';
+import 'qr_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -30,7 +34,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppTheme.primaryColor,
         unselectedItemColor: AppTheme.textSecondary,
-        showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
           BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'الزملاء'),
@@ -65,14 +68,18 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   void _joinMeeting(String roomId) {
-    if (roomId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال معرف الغرفة')));
-      return;
+    if (roomId.isEmpty) return;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: roomId, userName: _userName)));
+  }
+
+  // دالة لحفظ وقت الدراسة عند إيقاف المؤقت
+  void _toggleTimer() {
+    setState(() => _isTimerRunning = !_isTimerRunning);
+    if (!_isTimerRunning && _seconds < 1500) {
+      int studiedMinutes = (1500 - _seconds) ~/ 60;
+      if (studiedMinutes > 0) AuthService.updateStudyTime(studiedMinutes);
+      setState(() => _seconds = 1500); // إعادة ضبط المؤقت
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: roomId, userName: _userName)),
-    );
   }
 
   @override
@@ -80,12 +87,7 @@ class _HomeTabState extends State<HomeTab> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DIRASA 2TM'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())))],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -93,9 +95,22 @@ class _HomeTabState extends State<HomeTab> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('أهلاً، $_userName', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-            const SizedBox(height: 4),
-            const Text('جاهز لبدء جلسة دراسة؟', style: TextStyle(fontSize: 15, color: AppTheme.textSecondary)),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+            
+            // الميزات الجديدة (شبكة الأدوات)
+            const Text('أدوات القسم', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildFeatureBtn('المساعد الذكي', Icons.smart_toy_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AIScreen()))),
+                _buildFeatureBtn('المتصدرين', Icons.emoji_events_outlined, Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
+                _buildFeatureBtn('السبورة', Icons.draw_outlined, Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // مؤقت التركيز
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -112,57 +127,42 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                     Container(
                       decoration: const BoxDecoration(color: AppTheme.primaryColor, shape: BoxShape.circle),
-                      child: IconButton(
-                        iconSize: 32,
-                        padding: const EdgeInsets.all(12),
-                        onPressed: () => setState(() => _isTimerRunning = !_isTimerRunning),
-                        icon: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow, color: Colors.white),
-                      ),
+                      child: IconButton(iconSize: 32, padding: const EdgeInsets.all(12), onPressed: _toggleTimer, icon: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow, color: Colors.white)),
                     ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
+
+            // إنشاء اجتماع
             _buildActionTile(
-              title: 'إنشاء اجتماع جديد',
-              subtitle: 'ابدأ غرفة فيديو فورية للقسم',
-              icon: Icons.video_camera_front_outlined,
-              iconColor: Colors.greenAccent,
+              title: 'إنشاء اجتماع جديد', subtitle: 'ابدأ غرفة فيديو فورية', icon: Icons.video_camera_front_outlined, iconColor: Colors.greenAccent,
               onTap: () {
                 String newRoom = 'DIRASA_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-                _joinMeeting(newRoom);
+                showDialog(context: context, builder: (context) => AlertDialog(
+                  title: const Text('غرفة جاهزة'),
+                  content: QrImageView(data: newRoom, size: 200),
+                  actions: [
+                    TextButton(onPressed: () { Navigator.pop(context); _joinMeeting(newRoom); }, child: const Text('دخول الغرفة')),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+                  ],
+                ));
               },
             ),
             const SizedBox(height: 16),
+
+            // الانضمام
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.group_add_outlined, color: Colors.orangeAccent),
-                        SizedBox(width: 16),
-                        Text('الانضمام إلى غرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: _roomController,
-                      style: const TextStyle(color: AppTheme.textPrimary),
-                      decoration: const InputDecoration(hintText: 'أدخل كود الغرفة', prefixIcon: Icon(Icons.keyboard_outlined)),
-                    ),
+                    const Row(children: [Icon(Icons.meeting_room, color: Colors.orangeAccent), SizedBox(width: 10), Text('الانضمام إلى غرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))]),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-                        onPressed: () => _joinMeeting(_roomController.text.trim()),
-                        child: const Text('انضمام'),
-                      ),
-                    ),
+                    TextField(controller: _roomController, decoration: const InputDecoration(hintText: 'أدخل كود الغرفة', prefixIcon: Icon(Icons.keyboard_outlined))),
+                    const SizedBox(height: 16),
+                    SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => _joinMeeting(_roomController.text.trim()), child: const Text('انضمام'))),
                   ],
                 ),
               ),
@@ -173,31 +173,30 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  Widget _buildFeatureBtn(String title, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          CircleAvatar(radius: 30, backgroundColor: color.withOpacity(0.1), child: Icon(icon, color: color, size: 30)),
+          const SizedBox(height: 8),
+          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionTile({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap}) {
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(24), onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(icon, color: iconColor, size: 28),
-              ),
+              Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: iconColor, size: 28)),
               const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-                  ],
-                ),
-              ),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(subtitle, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary))])),
               const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.textSecondary),
             ],
           ),

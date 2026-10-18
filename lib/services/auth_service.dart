@@ -29,44 +29,52 @@ class AuthService {
     return prefs.getString(_keyUserName);
   }
 
-  // تسجيل الدخول أو إنشاء حساب جديد في Firebase
   static Future<bool> login(String name) async {
     try {
-      // نصنع بريد إلكتروني وهمي وكلمة مرور ثابتة لكي لا يزعج المستخدم
       String email = "${name.trim().replaceAll(' ', '_').toLowerCase()}@dirasa.com";
       String password = "DirasaPassword123!";
-
       UserCredential userCred;
+
       try {
-        // محاولة تسجيل الدخول
         userCred = await _auth.signInWithEmailAndPassword(email: email, password: password);
       } on FirebaseAuthException catch (e) {
         if (e.code == 'user-not-found') {
-          // إذا لم يكن الحساب موجوداً، ننشئ حساباً جديداً
           userCred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-        } else {
-          return false;
-        }
+        } else { return false; }
       }
 
-      // حفظ بيانات المستخدم في قاعدة بيانات Firestore
       if (userCred.user != null) {
         await _db.collection('users').doc(userCred.user!.uid).set({
           'name': name,
           'email': email,
           'uid': userCred.user!.uid,
+          'status': 'متاح للدراسة',
+          'studyTime': 0,
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
-        await prefs.setString('userId', userCred.user!.uid); // حفظ المعرف للاستخدام لاحقاً
+        await prefs.setString('userId', userCred.user!.uid);
         return true;
       }
       return false;
-    } catch (e) {
-      print("Error logging in: $e");
-      return false;
+    } catch (e) { return false; }
+  }
+
+  static Future<void> updateStudyTime(int minutes) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      await _db.collection('users').doc(uid).update({
+        'studyTime': FieldValue.increment(minutes),
+      });
+    }
+  }
+
+  static Future<void> updateStatus(String status) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      await _db.collection('users').doc(uid).update({'status': status});
     }
   }
 
