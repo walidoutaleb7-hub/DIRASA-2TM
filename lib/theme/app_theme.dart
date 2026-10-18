@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF1E293B);
-  static const Color accentColor = Color(0xFF3B82F6);
-  static const Color bgColor = Color(0xFFF8FAFC);
-  static const Color cardColor = Colors.white;
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF64748B);
+  // ألوان مستوحاة من أيقونة التطبيق
+  static const Color primaryColor = Color(0xFF3B82F6); // الأزرق الكهربائي
+  static const Color bgColor = Color(0xFF0B1120); // الكحلي العميق جداً
+  static const Color cardColor = Color(0xFF1E293B); // لون البطاقات
+  static const Color textPrimary = Color(0xFFF8FAFC); // أبيض ناصع
+  static const Color textSecondary = Color(0xFF94A3B8); // رمادي فاتح
 
-  static ThemeData get lightTheme {
+  static ThemeData get darkTheme {
     return ThemeData(
+      brightness: Brightness.dark,
       scaffoldBackgroundColor: bgColor,
       primaryColor: primaryColor,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.dark(
         primary: primaryColor,
-        secondary: accentColor,
+        secondary: primaryColor,
         surface: cardColor,
       ),
       appBarTheme: const AppBarTheme(
@@ -35,20 +36,20 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: cardColor,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200, width: 1)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: accentColor, width: 2)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade800, width: 1)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: primaryColor, width: 2)),
         prefixIconColor: textSecondary,
       ),
-      // التعديل هنا: CardThemeData بدلاً من CardTheme
       cardTheme: CardThemeData(
         color: cardColor,
-        elevation: 0,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: Colors.grey.shade100, width: 1),
+          side: BorderSide(color: Colors.grey.shade800, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),

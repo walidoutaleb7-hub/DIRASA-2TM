@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 48),
             TextField(
               controller: _nameController,
+              style: const TextStyle(color: AppTheme.textPrimary),
               decoration: const InputDecoration(
                 labelText: 'الاسم الكامل',
                 prefixIcon: Icon(Icons.person_outline),

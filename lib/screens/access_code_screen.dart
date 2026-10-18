@@ -34,26 +34,29 @@ class _AccessCodeScreenState extends State<AccessCodeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentColor.withOpacity(0.1),
+                  color: AppTheme.cardColor,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: AppTheme.primaryColor.withOpacity(0.2), blurRadius: 30, spreadRadius: 5),
+                  ],
                 ),
-                child: const Icon(Icons.shield_outlined, size: 64, color: AppTheme.accentColor),
+                child: const Icon(Icons.shield_outlined, size: 60, color: AppTheme.primaryColor),
               ),
               const SizedBox(height: 32),
               const Text('DIRASA 2TM', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: AppTheme.textPrimary)),
               const SizedBox(height: 8),
-              const Text('نظام إدارة المؤتمرات والدراسة', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+              const Text('أدخل رمز القسم للدخول', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
               const SizedBox(height: 48),
               TextField(
                 controller: _codeController,
                 obscureText: true,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 20, letterSpacing: 8),
+                style: const TextStyle(fontSize: 20, letterSpacing: 8, color: AppTheme.textPrimary),
                 decoration: InputDecoration(
-                  hintText: 'أدخل رمز القسم',
+                  hintText: 'الرمز السري',
                   hintStyle: const TextStyle(letterSpacing: 0, fontSize: 16),
                   errorText: _error.isEmpty ? null : _error,
                   prefixIcon: const Icon(Icons.lock_outline),

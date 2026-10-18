@@ -25,6 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: AppTheme.cardColor,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppTheme.primaryColor,
@@ -40,7 +41,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// الشاشة الرئيسية للمكالمات والمؤقت
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
   @override
@@ -128,7 +128,7 @@ class _HomeTabState extends State<HomeTab> {
               title: 'إنشاء اجتماع جديد',
               subtitle: 'ابدأ غرفة فيديو فورية للقسم',
               icon: Icons.video_camera_front_outlined,
-              iconColor: Colors.green,
+              iconColor: Colors.greenAccent,
               onTap: () {
                 String newRoom = 'DIRASA_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
                 _joinMeeting(newRoom);
@@ -143,7 +143,7 @@ class _HomeTabState extends State<HomeTab> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.group_add_outlined, color: Colors.orange),
+                        Icon(Icons.group_add_outlined, color: Colors.orangeAccent),
                         SizedBox(width: 16),
                         Text('الانضمام إلى غرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                       ],
@@ -151,13 +151,14 @@ class _HomeTabState extends State<HomeTab> {
                     const SizedBox(height: 20),
                     TextField(
                       controller: _roomController,
+                      style: const TextStyle(color: AppTheme.textPrimary),
                       decoration: const InputDecoration(hintText: 'أدخل كود الغرفة', prefixIcon: Icon(Icons.keyboard_outlined)),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentColor),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
                         onPressed: () => _joinMeeting(_roomController.text.trim()),
                         child: const Text('انضمام'),
                       ),

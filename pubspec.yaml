@@ -11,6 +11,9 @@ dependencies:
     sdk: flutter
   zego_uikit_prebuilt_video_conference: ^2.10.3
   shared_preferences: ^2.2.2
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.15.8
 
 dev_dependencies:
   flutter_test:
@@ -21,5 +24,10 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/app_icon.png"
-  adaptive_icon_background: "#1E293B" # لون الخلفية الداكنة المشابه للأيقونة
+  adaptive_icon_background: "#0F172A"
   adaptive_icon_foreground: "assets/app_icon.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

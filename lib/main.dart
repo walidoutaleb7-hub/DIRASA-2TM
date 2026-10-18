@@ -1,33 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
-import 'services/auth_service.dart';
-import 'screens/access_code_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  bool isVerified = await AuthService.isVerified();
-  String? userName = await AuthService.getUserName();
-  
-  runApp(MyApp(isVerified: isVerified, savedUserName: userName));
+  await Firebase.initializeApp();
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final bool isVerified;
-  final String? savedUserName;
-
-  const MyApp({super.key, required this.isVerified, this.savedUserName});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DIRASA 2TM',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: isVerified 
-          ? (savedUserName == null ? const LoginScreen() : const DashboardScreen())
-          : const AccessCodeScreen(),
+      theme: AppTheme.darkTheme, // تفعيل الوضع الداكن الفخم
+      home: const SplashScreen(), // البدء بشاشة البداية
     );
   }
 }
