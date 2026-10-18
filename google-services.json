@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "558581938395",
+    "project_id": "weura-ai-dda2a",
+    "storage_bucket": "weura-ai-dda2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:558581938395:android:039ba73a91d987a7c974fe",
+        "android_client_info": {
+          "package_name": "com.weura"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "558581938395-r6mt50bk11bjkkq12p34r3ponkbeqluv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.weura",
+            "certificate_hash": "a9c582d2ef2690165c6696eb114797770d8a5614"
+          }
+        },
+        {
+          "client_id": "558581938395-hfmj12mk93vha0he65n8k0n1hit0udum.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0qSDrPhXkzbCA2MDja2Uk6EYbtD7CI4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "558581938395-hfmj12mk93vha0he65n8k0n1hit0udum.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
