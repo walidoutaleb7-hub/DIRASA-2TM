@@ -10,8 +10,8 @@ class ConferenceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // ⚠️ ضع المفاتيح الخاصة بك هنا ⚠️
-    const int appID = 123456789; 
-    const String appSign = 'your_app_sign_here'; 
+    const int appID = 742182118; 
+    const String appSign = 'f7567d498c977acaac73b2b814743e05170d993f282c28d1141c4bc29a749c74'; 
 
     return SafeArea(
       child: ZegoUIKitPrebuiltVideoConference(
