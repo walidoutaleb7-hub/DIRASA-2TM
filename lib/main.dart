@@ -5,7 +5,14 @@ import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+    // التطبيق سيكمل عمله حتى لو فشل Firebase مؤقتاً
+  }
+  
   runApp(const MyApp());
 }
 
@@ -17,8 +24,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'DIRASA 2TM',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme, // تفعيل الوضع الداكن الفخم
-      home: const SplashScreen(), // البدء بشاشة البداية
+      theme: AppTheme.darkTheme,
+      home: const SplashScreen(),
     );
   }
 }
