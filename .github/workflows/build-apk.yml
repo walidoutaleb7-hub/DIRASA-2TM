@@ -25,9 +25,58 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # هذه الخطوة الجديدة ستقوم بإنشاء مجلد android تلقائياً
+      # ⚡ تسريع البناء: حفظ ملفات Gradle مؤقتاً لتقليل وقت البناء
+      - name: Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
+
+      # 🔑 الحل الجذري: إجبار جميع المكتبات (بما فيها Zego) على استخدام SDK 36
+      - name: Force compileSdk 36 for all plugins
+        run: |
+          # تعديل ملف التطبيق الأساسي
+          sed -i 's/compileSdk = 34/compileSdk = 36/g' android/app/build.gradle.kts || true
+          sed -i 's/compileSdk = 35/compileSdk = 36/g' android/app/build.gradle.kts || true
+          sed -i 's/compileSdkVersion 34/compileSdkVersion 36/g' android/app/build.gradle || true
+          sed -i 's/compileSdkVersion 35/compileSdkVersion 36/g' android/app/build.gradle || true
+
+          # تعديل ملف الجذر لإجبار المكتبات (Zego) على استخدام SDK 36
+          if [ -f android/build.gradle.kts ]; then
+            echo '
+            subprojects {
+                afterEvaluate {
+                    if (project.hasProperty("android")) {
+                        val android = project.extensions.findByName("android")
+                        if (android is com.android.build.gradle.BaseExtension) {
+                            android.compileSdkVersion(36)
+                        }
+                    }
+                }
+            }' >> android/build.gradle.kts
+          elif [ -f android/build.gradle ]; then
+            echo '
+            subprojects {
+                afterEvaluate { project ->
+                    if (project.hasProperty("android")) {
+                        project.android.compileSdkVersion 36
+                    }
+                }
+            }' >> android/build.gradle
+          fi
+
+      - name: Setup Firebase Config
+        run: |
+          cp google-services.json android/app/ || true
+          sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services"/' android/app/build.gradle || true
+          sed -i 's/id("com.android.application")/id("com.android.application")\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts || true
 
       - name: Get dependencies
         run: flutter pub get
