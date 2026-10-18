@@ -41,22 +41,53 @@ jobs:
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      - name: Fix App Name, Permissions, and MinSdk
+      # ✅ تعديل الـ Manifest باستخدام Python لضمان سلامة الـ XML
+      - name: Fix App Name, Permissions, and Exported
         run: |
-          # 1. تغيير اسم التطبيق
-          sed -i 's/android:label=".*"/android:label="DIRASA 2TM"/' android/app/src/main/AndroidManifest.xml
+          python3 -c '
+          import xml.etree.ElementTree as ET
+          import os
           
-          # 2. إضافة الأذونات وإصلاح Android 12+ exported
-          sed -i 's/<application/<uses-permission android:name="android.permission.CAMERA"\/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"\/>\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"\/>\n    <uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
-          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity"\n            android:exported="true"/' android/app/src/main/AndroidManifest.xml
+          path = "android/app/src/main/AndroidManifest.xml"
+          if os.path.exists(path):
+              ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
+              tree = ET.parse(path)
+              root = tree.getroot()
+              
+              app = root.find("application")
+              if app is not None:
+                  app.set("{http://schemas.android.com/apk/res/android}label", "DIRASA 2TM")
+                  act = app.find("activity")
+                  if act is not None:
+                      act.set("{http://schemas.android.com/apk/res/android}exported", "true")
+                      
+              perms = ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "INTERNET", "ACCESS_NETWORK_STATE", "BLUETOOTH"]
+              existing = [p.get("{http://schemas.android.com/apk/res/android}name") for p in root.findall("uses-permission")]
+              
+              for p in perms:
+                  full_p = "android.permission." + p
+                  if full_p not in existing:
+                      ET.SubElement(root, "uses-permission", {"{http://schemas.android.com/apk/res/android}name": full_p})
+                      
+              tree.write(path, encoding="utf-8", xml_declaration=True)
+              print("Manifest updated successfully!")
+          else:
+              print("Manifest not found!")
+          '
 
-          # 3. إجبار اسم الحزمة ليتطابق مع Firebase
+      - name: Fix Gradle Config (Package, MinSdk, Proguard)
+        run: |
+          # 1. إجبار اسم الحزمة و minSdk وإيقاف الحماية (Proguard) لمنع الإغلاق المفاجئ
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/applicationId = ".*"/applicationId = "com.example.video_meet_app"/g' android/app/build.gradle.kts
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle.kts
+            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
+            sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
           elif [ -f android/app/build.gradle ]; then
             sed -i 's/applicationId ".*"/applicationId "com.example.video_meet_app"/g' android/app/build.gradle
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle
+            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
+            sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle
           fi
 
       - name: Setup Firebase Config
@@ -76,24 +107,19 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Force compileSdk 36 and disable shrinking
+      - name: Force compileSdk 36 in all downloaded plugins
         run: |
           set +e 
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
             sed -i 's/compileSdk = flutterCompileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
             sed -i 's/compileSdk = 3[0-9]/compileSdk = 36/g' android/app/build.gradle.kts
-            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
-            sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
           fi
           if [ -f android/app/build.gradle ]; then
             sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
             sed -i 's/compileSdkVersion flutterCompileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
             sed -i 's/compileSdkVersion 3[0-9]/compileSdkVersion 36/g' android/app/build.gradle
-            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
-            sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle
           fi
-          
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutterCompileSdkVersion/compileSdkVersion 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion 3[0-9]/compileSdkVersion 36/g' {} +
@@ -114,7 +140,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: "v1.0.${{ github.run_number }}"
           name: "DIRASA 2TM - Build ${{ github.run_number }}"
-          body: "تطبيق DIRASA 2TM - نسخة محسنة ومستقرة"
+          body: "تطبيق DIRASA 2TM - نسخة مستقرة ومحسنة"
           draft: false
           prerelease: false
           allowUpdates: true
