@@ -3,6 +3,8 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
 import 'settings_screen.dart';
+import 'social_screen.dart';
+import 'chat_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -11,6 +13,41 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  int _currentIndex = 0;
+  final List<Widget> _pages = [
+    const HomeTab(),
+    const SocialScreen(),
+    const ChatListScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        selectedItemColor: AppTheme.primaryColor,
+        unselectedItemColor: AppTheme.textSecondary,
+        showUnselectedLabels: true,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
+          BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'الزملاء'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat_bubble), label: 'المحادثات'),
+        ],
+      ),
+    );
+  }
+}
+
+// الشاشة الرئيسية للمكالمات والمؤقت
+class HomeTab extends StatefulWidget {
+  const HomeTab({super.key});
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
   String _userName = '';
   final TextEditingController _roomController = TextEditingController();
   int _seconds = 1500;
@@ -46,9 +83,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
@@ -61,8 +96,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 4),
             const Text('جاهز لبدء جلسة دراسة؟', style: TextStyle(fontSize: 15, color: AppTheme.textSecondary)),
             const SizedBox(height: 32),
-            
-            // مؤقت التركيز
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -74,10 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         const Text('مؤقت التركيز', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
                         const SizedBox(height: 8),
-                        Text(
-                          '${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}',
-                          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-                        ),
+                        Text('${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
                       ],
                     ),
                     Container(
@@ -94,8 +124,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // إنشاء اجتماع
             _buildActionTile(
               title: 'إنشاء اجتماع جديد',
               subtitle: 'ابدأ غرفة فيديو فورية للقسم',
@@ -107,32 +135,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
             const SizedBox(height: 16),
-
-            // الانضمام لاجتماع
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
-                          child: const Icon(Icons.group_add_outlined, color: Colors.orange),
-                        ),
-                        const SizedBox(width: 16),
-                        const Text('الانضمام إلى غرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                        Icon(Icons.group_add_outlined, color: Colors.orange),
+                        SizedBox(width: 16),
+                        Text('الانضمام إلى غرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                       ],
                     ),
                     const SizedBox(height: 20),
                     TextField(
                       controller: _roomController,
-                      decoration: const InputDecoration(
-                        hintText: 'أدخل كود الغرفة',
-                        prefixIcon: Icon(Icons.keyboard_outlined),
-                      ),
+                      decoration: const InputDecoration(hintText: 'أدخل كود الغرفة', prefixIcon: Icon(Icons.keyboard_outlined)),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
