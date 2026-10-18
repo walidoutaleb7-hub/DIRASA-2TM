@@ -9,9 +9,8 @@ class ConferenceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ⚠️ ضع المفاتيح الخاصة بك هنا ⚠️
-    const int appID = 742182118; 
-    const String appSign = 'f7567d498c977acaac73b2b814743e05170d993f282c28d1141c4bc29a749c74'; 
+    const int appID = 123456789; // تأكد من وضع AppID الخاص بك هنا
+    const String appSign = 'your_app_sign_here'; // تأكد من وضع AppSign الخاص بك هنا
 
     return SafeArea(
       child: ZegoUIKitPrebuiltVideoConference(
@@ -21,7 +20,10 @@ class ConferenceScreen extends StatelessWidget {
         userName: userName,
         conferenceID: conferenceID,
         config: ZegoUIKitPrebuiltVideoConferenceConfig(
-          videoConfig: ZegoVideoConfig(resolution: ZegoVideoConfigPreset.preset1080p),
+          // التعديل هنا: video بدلاً من videoConfig
+          video: const ZegoUIKitVideoConfig(
+            resolution: ZegoVideoConfigPreset.preset1080p,
+          ),
           bottomMenuBarConfig: ZegoBottomMenuBarConfig(
             buttons: [
               ZegoMenuBarButtonName.chatButton,
@@ -30,9 +32,7 @@ class ConferenceScreen extends StatelessWidget {
               ZegoMenuBarButtonName.switchCameraButton,
             ],
           ),
-          layout: ZegoLayout.gallery(
-            showNewScreenSharingViewInFullscreenMode: true,
-          ),
+          layout: ZegoLayout.gallery(showNewScreenSharingViewInFullscreenMode: true),
         ),
       ),
     );
