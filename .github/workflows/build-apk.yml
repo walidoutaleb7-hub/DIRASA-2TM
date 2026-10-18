@@ -41,23 +41,30 @@ jobs:
       - name: Setup Firebase Config
         run: |
           cp google-services.json android/app/ || true
-          sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services"/' android/app/build.gradle || true
+          # إضافة Firebase في ملف Kotlin أو Groovy
           sed -i 's/id("com.android.application")/id("com.android.application")\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts || true
+          sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services"/' android/app/build.gradle || true
 
       - name: Get dependencies
         run: flutter pub get
 
-      # 🔑 الحل السحري: تغيير رقم الـ SDK في ملفات المكتبات بعد تحميلها مباشرة
+      # 🔑 الحل السحري والمحمي ضد الأخطاء
       - name: Force compileSdk 36 in all downloaded plugins
         run: |
-          # تعديل التطبيق الأساسي
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
+          # تعطيل التوقف المفاجئ عند الخطأ
+          set +e 
           
-          # البحث في كافة المكتبات المحملة وتغيير الـ SDK إلى 36
+          # تعديل ملفات التطبيق الأساسية (إذا وجدت)
+          [ -f android/app/build.gradle.kts ] && sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+          [ -f android/app/build.gradle.kts ] && sed -i 's/compileSdk = [0-9]*/compileSdk = 36/g' android/app/build.gradle.kts
+          
+          [ -f android/app/build.gradle ] && sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
+          [ -f android/app/build.gradle ] && sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' android/app/build.gradle
+          
+          # تعديل ملفات المكتبات
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' {} +
-          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = [0-9]*/compileSdk = 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' {} +
+          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = [0-9]*/compileSdk = 36/g' {} +
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' {} +
 
       - name: Generate App Icons
