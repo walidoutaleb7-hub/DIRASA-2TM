@@ -16,9 +16,18 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
-    await AuthService.login(_nameController.text.trim());
+    
+    bool success = await AuthService.login(_nameController.text.trim());
+    
     if (mounted) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+      setState(() => _isLoading = false);
+      if (success) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('حدث خطأ في الاتصال بالخادم، تأكد من الإنترنت.')),
+        );
+      }
     }
   }
 
