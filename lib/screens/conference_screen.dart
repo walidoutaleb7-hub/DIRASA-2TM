@@ -20,17 +20,20 @@ class ConferenceScreen extends StatelessWidget {
         userName: userName,
         conferenceID: conferenceID,
         config: ZegoUIKitPrebuiltVideoConferenceConfig(
-          video: const ZegoUIKitVideoConfig(resolution: ZegoVideoConfigPreset.preset1080p),
+          // التصحيح: استخدام preset1080P() بدلاً من المعامل resolution
+          video: ZegoUIKitVideoConfig.preset1080P(),
           bottomMenuBarConfig: ZegoBottomMenuBarConfig(
             buttons: [
               ZegoMenuBarButtonName.chatButton,
               ZegoMenuBarButtonName.toggleScreenSharingButton,
               ZegoMenuBarButtonName.toggleMicrophoneButton,
               ZegoMenuBarButtonName.switchCameraButton,
-              ZegoMenuBarButtonName.raiseHandButton, // ميزة رفع اليد
             ],
           ),
-          layout: ZegoLayout.gallery(showNewScreenSharingViewInFullscreenMode: true),
+          // التصحيح: استخدام معامل layout بشكل صحيح
+          layout: ZegoLayout.gallery(
+            showNewScreenSharingViewInFullscreenMode: true,
+          ),
         ),
       ),
     );

@@ -33,10 +33,10 @@ class _AIScreenState extends State<AIScreen> {
     _scrollToBottom();
 
     try {
-      // ترقية النموذج إلى 3.6 Flash (الأحدث والأذكى مجاناً)
       final model = GenerativeModel(
-        model: 'gemini-3.6-flash', 
+        model: 'gemini-3.6-flash',
         apiKey: _apiKey,
+        // التصحيح: تمرير تعليمات النظام عبر معامل systemInstruction
         systemInstruction: Content.system(
           'أنت "DIRASA AI"، مساعد دراسي خارق الذكاء لطلاب قسم DIRASA 2TM. '
           'أسلوبك احترافي، مشجع، ومنظم جداً. '
