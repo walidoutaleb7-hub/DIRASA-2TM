@@ -20,7 +20,6 @@ class ConferenceScreen extends StatelessWidget {
         userName: userName,
         conferenceID: conferenceID,
         config: ZegoUIKitPrebuiltVideoConferenceConfig(
-          // التصحيح: استخدام preset1080P() بدلاً من المعامل resolution
           video: ZegoUIKitVideoConfig.preset1080P(),
           bottomMenuBarConfig: ZegoBottomMenuBarConfig(
             buttons: [
@@ -30,11 +29,10 @@ class ConferenceScreen extends StatelessWidget {
               ZegoMenuBarButtonName.switchCameraButton,
             ],
           ),
-          // التصحيح: استخدام معامل layout بشكل صحيح
-          layout: ZegoLayout.gallery(
+          // التصحيح: تعيين التخطيط باستخدام cascade operator
+        )..layout = ZegoLayout.gallery(
             showNewScreenSharingViewInFullscreenMode: true,
           ),
-        ),
       ),
     );
   }

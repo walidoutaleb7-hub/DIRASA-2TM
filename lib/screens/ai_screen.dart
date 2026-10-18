@@ -34,10 +34,10 @@ class _AIScreenState extends State<AIScreen> {
 
     try {
       final model = GenerativeModel(
-        model: 'gemini-3.6-flash',
+        model: 'gemini-1.5-flash', // يفضل استخدام 1.5-flash حالياً
         apiKey: _apiKey,
-        // التصحيح: تمرير تعليمات النظام عبر معامل systemInstruction
-        systemInstruction: Content.system(
+        // التصحيح: استخدام Content.text لتعليمات النظام
+        systemInstruction: Content.text(
           'أنت "DIRASA AI"، مساعد دراسي خارق الذكاء لطلاب قسم DIRASA 2TM. '
           'أسلوبك احترافي، مشجع، ومنظم جداً. '
           'عند شرح أي مفهوم، اتبع هذه القواعد: '
