@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
@@ -8,7 +9,7 @@ import 'chat_list_screen.dart';
 import 'ai_screen.dart';
 import 'leaderboard_screen.dart';
 import 'whiteboard_screen.dart';
-import 'qr_screen.dart';
+import 'subject_rooms_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,11 +19,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
-  final List<Widget> _pages = [
-    const HomeTab(),
-    const SocialScreen(),
-    const ChatListScreen(),
-  ];
+  final List<Widget> _pages = [const HomeTab(), const SocialScreen(), const ChatListScreen()];
 
   @override
   Widget build(BuildContext context) {
@@ -72,13 +69,12 @@ class _HomeTabState extends State<HomeTab> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: roomId, userName: _userName)));
   }
 
-  // دالة لحفظ وقت الدراسة عند إيقاف المؤقت
   void _toggleTimer() {
     setState(() => _isTimerRunning = !_isTimerRunning);
     if (!_isTimerRunning && _seconds < 1500) {
       int studiedMinutes = (1500 - _seconds) ~/ 60;
       if (studiedMinutes > 0) AuthService.updateStudyTime(studiedMinutes);
-      setState(() => _seconds = 1500); // إعادة ضبط المؤقت
+      setState(() => _seconds = 1500);
     }
   }
 
@@ -97,20 +93,24 @@ class _HomeTabState extends State<HomeTab> {
             Text('أهلاً، $_userName', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
             const SizedBox(height: 20),
             
-            // الميزات الجديدة (شبكة الأدوات)
             const Text('أدوات القسم', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildFeatureBtn('المساعد الذكي', Icons.smart_toy_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AIScreen()))),
-                _buildFeatureBtn('المتصدرين', Icons.emoji_events_outlined, Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
-                _buildFeatureBtn('السبورة', Icons.draw_outlined, Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFeatureBtn('المساعد الذكي', Icons.smart_toy_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AIScreen()))),
+                  const SizedBox(width: 20),
+                  _buildFeatureBtn('المتصدرين', Icons.emoji_events_outlined, Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
+                  const SizedBox(width: 20),
+                  _buildFeatureBtn('السبورة', Icons.draw_outlined, Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
+                  const SizedBox(width: 20),
+                  _buildFeatureBtn('القاعات', Icons.meeting_room_outlined, Colors.blueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 
-            // مؤقت التركيز
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -135,14 +135,17 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 24),
 
-            // إنشاء اجتماع
             _buildActionTile(
               title: 'إنشاء اجتماع جديد', subtitle: 'ابدأ غرفة فيديو فورية', icon: Icons.video_camera_front_outlined, iconColor: Colors.greenAccent,
               onTap: () {
                 String newRoom = 'DIRASA_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
                 showDialog(context: context, builder: (context) => AlertDialog(
-                  title: const Text('غرفة جاهزة'),
-                  content: QrImageView(data: newRoom, size: 200),
+                  title: const Text('غرفة جاهزة (امسح الكود)'),
+                  content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    QrImageView(data: newRoom, size: 200, backgroundColor: Colors.white),
+                    const SizedBox(height: 10),
+                    Text(newRoom, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ]),
                   actions: [
                     TextButton(onPressed: () { Navigator.pop(context); _joinMeeting(newRoom); }, child: const Text('دخول الغرفة')),
                     TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
@@ -152,13 +155,12 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 16),
 
-            // الانضمام
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    const Row(children: [Icon(Icons.meeting_room, color: Colors.orangeAccent), SizedBox(width: 10), Text('الانضمام إلى غرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))]),
+                    const Row(children: [Icon(Icons.keyboard, color: Colors.orangeAccent), SizedBox(width: 10), Text('الانضمام بكود', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))]),
                     const SizedBox(height: 16),
                     TextField(controller: _roomController, decoration: const InputDecoration(hintText: 'أدخل كود الغرفة', prefixIcon: Icon(Icons.keyboard_outlined))),
                     const SizedBox(height: 16),
