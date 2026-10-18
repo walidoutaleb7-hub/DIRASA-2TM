@@ -38,19 +38,15 @@ jobs:
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      # ✅ إعداد Firebase بشكل صحيح ليتوافق مع Gradle الجديد
       - name: Setup Firebase Config
         run: |
           cp google-services.json android/app/ || true
-          
-          # إضافة إصدار إضافة Firebase إلى settings.gradle
           if [ -f android/settings.gradle.kts ]; then
             sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services") version "4.4.1" apply false/' android/settings.gradle.kts
           elif [ -f android/settings.gradle ]; then
             sed -i 's/plugins {/plugins {\n    id "com.google.gms.google-services" version "4.4.1" apply false/' android/settings.gradle
           fi
           
-          # تطبيق إضافة Firebase في ملف التطبيق
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts
           elif [ -f android/app/build.gradle ]; then
@@ -60,20 +56,30 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # 🔑 الحل السحري والمحمي ضد الأخطاء (compileSdk)
       - name: Force compileSdk 36 in all downloaded plugins
         run: |
           set +e 
           
-          [ -f android/app/build.gradle.kts ] && sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
-          [ -f android/app/build.gradle.kts ] && sed -i 's/compileSdk = [0-9]*/compileSdk = 36/g' android/app/build.gradle.kts
-          [ -f android/app/build.gradle ] && sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
-          [ -f android/app/build.gradle ] && sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' android/app/build.gradle
-          
-          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 36/g' {} +
+          # تعديل ملفات التطبيق الأساسي
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+            sed -i 's/compileSdk = flutterCompileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+            sed -i 's/compileSdk = 3[0-9]/compileSdk = 36/g' android/app/build.gradle.kts
+          fi
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
+            sed -i 's/compileSdkVersion flutterCompileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
+            sed -i 's/compileSdkVersion 3[0-9]/compileSdkVersion 36/g' android/app/build.gradle
+          fi
+
+          # تعديل المكتبات المحملة
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' {} +
-          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = [0-9]*/compileSdk = 36/g' {} +
+          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion flutterCompileSdkVersion/compileSdkVersion 36/g' {} +
+          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle" -exec sed -i 's/compileSdkVersion 3[0-9]/compileSdkVersion 36/g' {} +
+          
           find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' {} +
+          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = flutterCompileSdkVersion/compileSdk = 36/g' {} +
+          find ~/.pub-cache/hosted/pub.dev/ -name "build.gradle.kts" -exec sed -i 's/compileSdk = 3[0-9]/compileSdk = 36/g' {} +
 
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
