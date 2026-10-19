@@ -85,14 +85,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
           // 2. محتوى الشاشة
           SafeArea(
-            child: Column(
+            child: SingleChildScrollView(child: Column(
               children: [
                 const Spacer(flex: 2),
                 
                 // الجزء العلوي: الأيقونة والاسم
                 FadeTransition(
                   opacity: _fadeAnimation,
-                  child: Column(
+                  child: SingleChildScrollView(child: Column(
                     children: [
                       // الأيقونة مع توهج
                       Container(
@@ -149,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             color: const Color(0xFF121212).withOpacity(0.6),
                             border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1), width: 1.5)),
                           ),
-                          child: Column(
+                          child: SingleChildScrollView(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text('مرحباً بك', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),

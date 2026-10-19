@@ -26,20 +26,17 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
   }
 
   Future<void> _initializeCall() async {
-    // 1. طلب أذونات الكاميرا والمايك من الهاتف
     var status = await [Permission.camera, Permission.microphone].request();
     if (!status[Permission.camera]!.isGranted || !status[Permission.microphone]!.isGranted) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'يجب السماح بالوصول للكاميرا والمايك لإجراء المكالمة.';
+        _errorMessage = 'يجب السماح بالوصول للكاميرا والمايك.';
       });
       return;
     }
 
-    // 2. جلب المفاتيح من خادم Render
     try {
       final response = await http.get(Uri.parse('https://dirasa-2tm.onrender.com/api/zego-credentials'));
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -48,53 +45,18 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'فشل في جلب مفاتيح المكالمة من الخادم. تأكد من إعدادات Render.';
-        });
+        setState(() { _isLoading = false; _errorMessage = 'فشل في جلب المفاتيح من الخادم.'; });
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'حدث خطأ في الاتصال بالشبكة. تأكد من الإنترنت.';
-      });
+      setState(() { _isLoading = false; _errorMessage = 'حدث خطأ في الاتصال بالشبكة.'; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF000000),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF00F0FF))),
-      );
-    }
+    if (_isLoading) return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: Colors.cyan)));
+    if (_errorMessage != null) return Scaffold(backgroundColor: Colors.black, body: Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.white))));
 
-    if (_errorMessage != null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF000000),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 60),
-                const SizedBox(height: 20),
-                Text(_errorMessage!, style: const TextStyle(color: Colors.white, fontSize: 18), textAlign: TextAlign.center),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('رجوع'),
-                )
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // 3. تشغيل واجهة Zego بالمفاتيح التي تم جلبها
     return SafeArea(
       child: ZegoUIKitPrebuiltVideoConference(
         appID: _appID!,
@@ -110,6 +72,7 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
               ZegoMenuBarButtonName.toggleScreenSharingButton,
               ZegoMenuBarButtonName.toggleMicrophoneButton,
               ZegoMenuBarButtonName.switchCameraButton,
+              ZegoMenuBarButtonName.leaveButton, // ✅ زر إنهاء المكالمة
             ],
           ),
         ),
