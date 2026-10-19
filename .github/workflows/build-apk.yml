@@ -33,16 +33,22 @@ jobs:
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      - name: Force Android 16 Compatibility (NDK 27, SDK 36, targetSdk 36)
+      - name: Force Android 16 Compatibility (SDK 36, MultiDex, Manifest)
         run: |
-          # 1. إجبار استخدام NDK 27 لدعم 16KB Page Size
-          echo "ndkVersion = '27.0.12077973'" >> android/app/build.gradle.kts
-          
-          # 2. إجبار targetSdk و compileSdk على 36
+          # 1. إجبار targetSdk و compileSdk على 36
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
           
-          # 3. إصلاح إعدادات Firebase و الأذونات
+          # 2. إضافة MultiDex وتعطيل Minify بشكل صحيح
+          sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
+          sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
+          
+          # إضافة MultiDex إذا لم تكن موجودة
+          if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
+            sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
+          fi
+
+          # 3. إصلاح إعدادات Firebase و الأذونات في Manifest
           python3 -c '
           import xml.etree.ElementTree as ET, os
           path = "android/app/src/main/AndroidManifest.xml"
@@ -64,10 +70,6 @@ jobs:
                       ET.SubElement(root, "uses-permission", {"{http://schemas.android.com/apk/res/android}name": full_p})
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
-          
-          # 4. تعطيل Minify و إضافة MultiDex
-          sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
-          sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
 
       - name: Setup Firebase Config
         run: |
@@ -80,7 +82,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK for arm64 only (compatible with your phone)
+      - name: Build APK for arm64 only
         run: flutter build apk --release --target-platform android-arm64
 
       - name: Upload APK
@@ -89,6 +91,9 @@ jobs:
           artifacts: "build/app/outputs/flutter-apk/app-release.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: "v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Build ${{ github.run_number }} (Android 16 Fixed)"
+          name: "DIRASA 2TM - Build ${{ github.run_number }}"
+          body: "النسخة النهائية المستقرة - دعم أندرويد 16"
           draft: false
           prerelease: false
+          allowUpdates: true
+          replacesArtifacts: true
