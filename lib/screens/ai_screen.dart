@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:markdown_widget/markdown_widget.dart'; // ✅ المكتبة الجديدة
+import 'package:markdown_widget/markdown_widget.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ مكتبة الحفظ
 import '../theme/app_theme.dart';
 
 class AIScreen extends StatefulWidget {
@@ -15,13 +16,47 @@ class _AIScreenState extends State<AIScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
-  final List<Map<String, dynamic>> _messages = [
-    {'role': 'ai', 'text': 'مرحباً بك في DIRASA AI. أنا مساعدك الدراسي الخارق. اسألني عن أي شيء.'}
-  ];
-  
+  List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
+  bool _isHistoryLoaded = false;
 
   final String _backendUrl = 'https://dirasa-2tm.onrender.com/api/chat';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory(); // تحميل الذاكرة عند فتح الشاشة
+  }
+
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? savedMessages = prefs.getString('ai_chat_history');
+    
+    if (savedMessages != null) {
+      List<dynamic> decoded = jsonDecode(savedMessages);
+      _messages = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } else {
+      _messages = [
+        {'role': 'ai', 'text': 'مرحباً بك في DIRASA AI. أنا مساعدك الدراسي الخارق. اسألني عن أي شيء.'}
+      ];
+    }
+    setState(() => _isHistoryLoaded = true);
+    _scrollToBottom();
+  }
+
+  Future<void> _saveHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ai_chat_history', jsonEncode(_messages));
+  }
+
+  Future<void> _clearHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('ai_chat_history');
+    setState(() {
+      _messages.clear();
+      _messages.add({'role': 'ai', 'text': 'تم مسح المحادثة. أنا جاهز لأسئلتك الجديدة!'});
+    });
+  }
 
   Future<void> _askAI() async {
     String userText = _controller.text.trim();
@@ -37,10 +72,11 @@ class _AIScreenState extends State<AIScreen> {
 
     try {
       List<Map<String, String>> history = [];
+      // بناء السجل (الذاكرة) وإرساله للخادم
       for (var msg in _messages) {
         if (msg['role'] == 'user') {
           history.add({'role': 'user', 'parts': msg['text']});
-        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري') && !msg['text'].contains('مرحباً بك')) {
+        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري') && !msg['text'].contains('مرحباً بك') && !msg['text'].contains('تم مسح')) {
           history.add({'role': 'model', 'parts': msg['text']});
         }
       }
@@ -76,6 +112,7 @@ class _AIScreenState extends State<AIScreen> {
         _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة.'});
       });
     }
+    _saveHistory(); // حفظ الذاكرة بعد كل رد
     _scrollToBottom();
   }
 
@@ -89,18 +126,15 @@ class _AIScreenState extends State<AIScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isHistoryLoaded) return const Scaffold(backgroundColor: Color(0xFF000000), body: Center(child: CircularProgressIndicator()));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('DIRASA AI'),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: () {
-              setState(() {
-                _messages.clear();
-                _messages.add({'role': 'ai', 'text': 'تم مسح المحادثة. أنا جاهز لأسئلتك الجديدة!'});
-              });
-            },
+            onPressed: _clearHistory, // مسح الذاكرة
           )
         ],
       ),
@@ -131,16 +165,13 @@ class _AIScreenState extends State<AIScreen> {
                       ),
                       border: isUser ? null : Border.all(color: Colors.grey.shade800),
                     ),
-                    // ✅ استخدام MarkdownWidget مع دعم LaTeX
                     child: MarkdownWidget(
                       data: msg['text'],
                       shrinkWrap: true,
                       config: MarkdownConfig(
                         configs: [
-                          LatexConfig(), // تفعيل ترجمة المعادلات الرياضية
-                          PConfig(
-                            textStyle: TextStyle(fontSize: 16, height: 1.6, color: isUser ? Colors.white : AppTheme.textPrimary),
-                          ),
+                          LatexConfig(),
+                          PConfig(textStyle: TextStyle(fontSize: 16, height: 1.6, color: isUser ? Colors.white : AppTheme.textPrimary)),
                           H1Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 22, fontWeight: FontWeight.bold)),
                           H2Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
                           H3Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
