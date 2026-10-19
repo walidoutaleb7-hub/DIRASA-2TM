@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ مكتبة الحفظ
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 
 class AIScreen extends StatefulWidget {
@@ -25,7 +25,7 @@ class _AIScreenState extends State<AIScreen> {
   @override
   void initState() {
     super.initState();
-    _loadHistory(); // تحميل الذاكرة عند فتح الشاشة
+    _loadHistory();
   }
 
   Future<void> _loadHistory() async {
@@ -72,7 +72,6 @@ class _AIScreenState extends State<AIScreen> {
 
     try {
       List<Map<String, String>> history = [];
-      // بناء السجل (الذاكرة) وإرساله للخادم
       for (var msg in _messages) {
         if (msg['role'] == 'user') {
           history.add({'role': 'user', 'parts': msg['text']});
@@ -112,7 +111,7 @@ class _AIScreenState extends State<AIScreen> {
         _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة.'});
       });
     }
-    _saveHistory(); // حفظ الذاكرة بعد كل رد
+    _saveHistory();
     _scrollToBottom();
   }
 
@@ -134,7 +133,7 @@ class _AIScreenState extends State<AIScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: _clearHistory, // مسح الذاكرة
+            onPressed: _clearHistory,
           )
         ],
       ),
@@ -170,14 +169,14 @@ class _AIScreenState extends State<AIScreen> {
                       shrinkWrap: true,
                       config: MarkdownConfig(
                         configs: [
-                          LatexConfig(),
                           PConfig(textStyle: TextStyle(fontSize: 16, height: 1.6, color: isUser ? Colors.white : AppTheme.textPrimary)),
                           H1Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 22, fontWeight: FontWeight.bold)),
                           H2Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
                           H3Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
                           CodeConfig(style: TextStyle(color: Colors.amberAccent, backgroundColor: Colors.black45, fontFamily: 'monospace')),
                           LinkConfig(style: TextStyle(color: AppTheme.primaryColor, decoration: TextDecoration.underline)),
-                          ListConfig(marker: (index, listType) => Text('•', style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18))),
+                          // ✅ تم إصلاح دالة النقاط لتقبل 3 معاملات
+                          ListConfig(marker: (isTight, index, listType) => Text('•', style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18))),
                         ],
                       ),
                     ),
