@@ -1,4 +1,4 @@
-name: Build Flutter APK (Debug)
+name: Build Flutter APK (Debug Test)
 
 on:
   push:
@@ -27,18 +27,13 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug
+          key: ${{ runner.os }}-gradle-debug-v3
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      - name: Force Android 16 Compatibility (SDK 36, Manifest)
+      - name: Fix Android Manifest and Permissions
         run: |
-          # إجبار targetSdk و compileSdk على 36
-          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
-          
-          # إصلاح إعدادات Firebase و الأذونات في Manifest
           python3 -c '
           import xml.etree.ElementTree as ET, os
           path = "android/app/src/main/AndroidManifest.xml"
@@ -46,20 +41,36 @@ jobs:
               ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
               tree = ET.parse(path)
               root = tree.getroot()
-              app = root.find("application")
-              if app is not None:
-                  app.set("{http://schemas.android.com/apk/res/android}label", "DIRASA 2TM")
-                  act = app.find("activity")
-                  if act is not None:
-                      act.set("{http://schemas.android.com/apk/res/android}exported", "true")
+              
               perms = ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "INTERNET", "ACCESS_NETWORK_STATE", "BLUETOOTH"]
               existing = [p.get("{http://schemas.android.com/apk/res/android}name") for p in root.findall("uses-permission")]
               for p in perms:
                   full_p = "android.permission." + p
                   if full_p not in existing:
                       ET.SubElement(root, "uses-permission", {"{http://schemas.android.com/apk/res/android}name": full_p})
+              
+              app = root.find("application")
+              if app is not None:
+                  app.set("{http://schemas.android.com/apk/res/android}label", "DIRASA 2TM")
+                  act = app.find("activity")
+                  if act is not None:
+                      act.set("{http://schemas.android.com/apk/res/android}exported", "true")
+                      act.set("{http://schemas.android.com/apk/res/android}configChanges", "orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode")
+              
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
+
+      - name: Fix Gradle Config (Android 16 & MultiDex)
+        run: |
+          # إجبار الإصدارات لتتوافق مع Android 16 (API 36)
+          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
+          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
+          
+          # تفعيل MultiDex (ضروري جداً لمنع الانهيار في الأجهزة الحديثة)
+          if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
+            sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
+          fi
 
       - name: Setup Firebase Config
         run: |
@@ -78,9 +89,9 @@ jobs:
         with:
           artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "debug-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Debug Build ${{ github.run_number }}"
-          body: "نسخة التطوير لمعرفة سبب الإغلاق"
+          tag: "test-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Test Build ${{ github.run_number }}"
+          body: "نسخة اختبارية لمعرفة سبب الإغلاق على أندرويد 16"
           draft: false
           prerelease: true
           allowUpdates: true
