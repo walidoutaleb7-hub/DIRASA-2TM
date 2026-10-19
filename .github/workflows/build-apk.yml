@@ -27,7 +27,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-v5
+          key: ${{ runner.os }}-gradle-debug-v6
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -56,11 +56,13 @@ jobs:
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
 
-      - name: Fix Gradle Config
+      - name: Fix Gradle Config (SDK 37 & MultiDex)
         run: |
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
-          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
+          # إجبار compileSdk و targetSdk على 37
+          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/g' android/app/build.gradle.kts
+          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 37/g' android/app/build.gradle.kts
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
+          
           if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
             sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
           fi
@@ -74,10 +76,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # توليد الأيقونات
-      - name: Generate App Icons
-        run: dart run flutter_launcher_icons
-
       - name: Build Debug APK
         run: flutter build apk --debug --target-platform android-arm64
 
@@ -86,9 +84,9 @@ jobs:
         with:
           artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "final-test-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Final Test ${{ github.run_number }}"
-          body: "النسخة النهائية - بدون رمز سري"
+          tag: "final-debug-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Final Debug ${{ github.run_number }}"
+          body: "النسخة النهائية"
           draft: false
           prerelease: true
           allowUpdates: true
