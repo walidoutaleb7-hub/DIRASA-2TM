@@ -1,5 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 
 class AIScreen extends StatefulWidget {
@@ -13,13 +14,13 @@ class _AIScreenState extends State<AIScreen> {
   final ScrollController _scrollController = ScrollController();
   
   final List<Map<String, dynamic>> _messages = [
-    {'role': 'ai', 'text': 'مرحباً بك في DIRASA AI. أنا مساعدك الدراسي الخارق. يمكنك سؤالي عن أي شيء (رياضيات، فيزياء، فلسفة، برمجة...) وسأشرحه لك بأسلوب مبسط واحترافي. بماذا أساعدك اليوم؟'}
+    {'role': 'ai', 'text': 'مرحباً بك في DIRASA AI. أنا مساعدك الدراسي الخارق. اسألني عن أي شيء.'}
   ];
   
   bool _isLoading = false;
 
-  // ⚠️ ضع مفتاح API الخاص بك هنا ⚠️
-  final String _apiKey = 'AQ.Ab8RN6KrkqlBO4TI9fdDekj43Z8OEeY2W-KmJa2EmlVZPVacQw'; 
+  // ✅ الرابط الخاص بك مباشرة هنا
+  final String _backendUrl = 'https://dirasa-2tm.onrender.com/api/chat';
 
   Future<void> _askAI() async {
     String userText = _controller.text.trim();
@@ -33,63 +34,50 @@ class _AIScreenState extends State<AIScreen> {
     _scrollToBottom();
 
     try {
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash', // يفضل استخدام 1.5-flash حالياً
-        apiKey: _apiKey,
-        // التصحيح: استخدام Content.text لتعليمات النظام
-        systemInstruction: Content.text(
-          'أنت "DIRASA AI"، مساعد دراسي خارق الذكاء لطلاب قسم DIRASA 2TM. '
-          'أسلوبك احترافي، مشجع، ومنظم جداً. '
-          'عند شرح أي مفهوم، اتبع هذه القواعد: '
-          '1. ابدأ بملخص سريع. '
-          '2. اشرح الفكرة الرئيسية ببساطة. '
-          '3. قم بتقسيم الحل أو الشرح إلى خطوات مرقمة. '
-          '4. استخدم التنسيق (النقاط، العريض) لتسهيل القراءة. '
-          '5. أنهِ إجابتك دائماً بسؤال تحفيزي للطالب. '
-          'لا تستخدم إيموجيات أبداً، والتزم باللغة العربية الفصحى المبسطة.'
-        ),
-      );
-
-      List<Content> history = [];
+      List<Map<String, String>> history = [];
       for (var msg in _messages) {
         if (msg['role'] == 'user') {
-          history.add(Content.text(msg['text']));
-        } else {
-          history.add(Content.model([TextPart(msg['text'])]));
+          history.add({'role': 'user', 'parts': msg['text']});
+        } else if (msg['role'] == 'ai') {
+          history.add({'role': 'model', 'parts': msg['text']});
         }
       }
+      if (history.isNotEmpty) history.removeLast();
 
-      final response = await model.generateContent(history);
+      final response = await http.post(
+        Uri.parse(_backendUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'message': userText,
+          'history': history,
+        }),
+      );
 
-      setState(() {
-        _isLoading = false;
-        _messages.add({
-          'role': 'ai', 
-          'text': response.text ?? "عذراً، لم أستطع معالجة طلبك. حاول صياغته بطريقة أخرى."
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _isLoading = false;
+          _messages.add({'role': 'ai', 'text': data['reply'] ?? 'عذراً، لم أفهم.'});
         });
-      });
-      _scrollToBottom();
-
+      } else {
+        setState(() {
+          _isLoading = false;
+          _messages.add({'role': 'ai', 'text': 'حدث خطأ في الاتصال بالخادم. تأكد من رابط Render.'});
+        });
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _messages.add({
-          'role': 'ai', 
-          'text': "حدث خطأ في الاتصال بالشبكة. تأكد من الإنترنت وصلاحية مفتاح API."
-        });
+        _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة. تأكد من الإنترنت.'});
       });
-      _scrollToBottom();
     }
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _scrollController.animateTo(_scrollController.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
   }
