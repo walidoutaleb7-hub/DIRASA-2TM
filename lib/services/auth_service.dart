@@ -15,7 +15,6 @@ class AuthService {
 
   static Future<bool> login(String name) async {
     try {
-      // محاولة تسجيل الدخول عبر Firebase
       String email = "${name.trim().replaceAll(' ', '_').toLowerCase()}@dirasa.com";
       String password = "DirasaPassword123!";
       UserCredential userCred;
@@ -44,7 +43,6 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      // 🚨 خطة الطوارئ: إذا فشل Firebase، ندخلك محلياً لكي تستخدم التطبيق
       print("Firebase failed, using local fallback: $e");
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUserName, name);
@@ -56,6 +54,25 @@ class AuthService {
     final user = _auth.currentUser;
     if (user != null) {
       try { await _db.collection('users').doc(user.uid).update({'studyTime': FieldValue.increment(minutes)}); } catch (_) {}
+    }
+  }
+
+  // ✅ إعادة الدالة المفقودة 1
+  static Future<void> updateStatus(String status) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try { await _db.collection('users').doc(user.uid).update({'status': status}); } catch (_) {}
+    }
+  }
+
+  // ✅ إعادة الدالة المفقودة 2
+  static Future<void> updateProfileImage(List<int> imageBytes) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        String base64Image = base64Encode(imageBytes);
+        await _db.collection('users').doc(user.uid).update({'profileImage': base64Image});
+      } catch (_) {}
     }
   }
 
