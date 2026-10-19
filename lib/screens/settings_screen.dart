@@ -16,17 +16,15 @@ class SettingsScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                _buildSettingTile(Icons.person_outline, 'الحساب', 'إدارة معلومات حسابك'),
+                _buildSettingTile(Icons.person_outline, 'الملف الشخصي', 'إدارة معلومات حسابك'),
                 const SizedBox(height: 12),
                 _buildSettingTile(Icons.notifications_none, 'الإشعارات', 'تخصيص التنبيهات'),
                 const SizedBox(height: 12),
-                _buildSettingTile(Icons.security, 'الخصوصية', 'أمان البيانات'),
-                const SizedBox(height: 12),
-                _buildSettingTile(Icons.help_outline, 'المساعدة والدعم', 'الأسئلة الشائعة'),
+                _buildSettingTile(Icons.security, 'الخصوصية والأمان', 'أمان البيانات'),
                 const SizedBox(height: 32),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade50,
+                    backgroundColor: Colors.red.withOpacity(0.1),
                     foregroundColor: Colors.red,
                   ),
                   onPressed: () async {
@@ -44,31 +42,22 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
-          
           // التوقيع الخاص بك
           Container(
             padding: const EdgeInsets.symmetric(vertical: 24),
             width: double.infinity,
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(top: BorderSide(color: Color(0xFF1E1E1E))),
             ),
             child: Column(
               children: [
-                const Icon(Icons.code, color: AppTheme.textSecondary, size: 24),
+                const Icon(Icons.code, color: Colors.grey, size: 24),
                 const SizedBox(height: 8),
-                const Text(
-                  'Developed by',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, letterSpacing: 1.2),
-                ),
+                const Text('Developed by', style: TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1.2)),
                 const SizedBox(height: 4),
                 Text(
                   'Walid Outaleb',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                    letterSpacing: 1.5,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor, letterSpacing: 1.5),
                 ),
               ],
             ),
@@ -79,7 +68,8 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSettingTile(IconData icon, String title, String subtitle) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         leading: Container(
@@ -87,9 +77,9 @@ class SettingsScreen extends StatelessWidget {
           decoration: BoxDecoration(color: AppTheme.bgColor, shape: BoxShape.circle),
           child: Icon(icon, color: AppTheme.primaryColor),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.textSecondary),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: () {},
       ),
     );

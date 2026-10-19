@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -19,7 +20,6 @@ class _AIScreenState extends State<AIScreen> {
   
   bool _isLoading = false;
 
-  // ✅ الرابط الخاص بك مباشرة هنا
   final String _backendUrl = 'https://dirasa-2tm.onrender.com/api/chat';
 
   Future<void> _askAI() async {
@@ -30,6 +30,8 @@ class _AIScreenState extends State<AIScreen> {
     setState(() {
       _messages.add({'role': 'user', 'text': userText});
       _isLoading = true;
+      // رسالة مؤقتة توضح للمستخدم أن الخادم يستيقظ
+      _messages.add({'role': 'ai', 'text': 'جاري الاتصال بالخادم... (قد يستغرق 30 ثانية إذا كان في وضع السكون)'});
     });
     _scrollToBottom();
 
@@ -38,12 +40,13 @@ class _AIScreenState extends State<AIScreen> {
       for (var msg in _messages) {
         if (msg['role'] == 'user') {
           history.add({'role': 'user', 'parts': msg['text']});
-        } else if (msg['role'] == 'ai') {
+        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري الاتصال')) {
           history.add({'role': 'model', 'parts': msg['text']});
         }
       }
       if (history.isNotEmpty) history.removeLast();
 
+      // ⏳ زيادة وقت الانتظار إلى 60 ثانية
       final response = await http.post(
         Uri.parse(_backendUrl),
         headers: {'Content-Type': 'application/json'},
@@ -51,23 +54,32 @@ class _AIScreenState extends State<AIScreen> {
           'message': userText,
           'history': history,
         }),
-      );
+      ).timeout(const Duration(seconds: 60)); 
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _isLoading = false;
+          _messages.removeLast(); // إزالة رسالة "جاري الاتصال"
           _messages.add({'role': 'ai', 'text': data['reply'] ?? 'عذراً، لم أفهم.'});
         });
       } else {
         setState(() {
           _isLoading = false;
-          _messages.add({'role': 'ai', 'text': 'حدث خطأ في الاتصال بالخادم. تأكد من رابط Render.'});
+          _messages.removeLast();
+          _messages.add({'role': 'ai', 'text': 'حدث خطأ في الخادم. الرجاء المحاولة لاحقاً.'});
         });
       }
+    } on TimeoutException {
+      setState(() {
+        _isLoading = false;
+        _messages.removeLast();
+        _messages.add({'role': 'ai', 'text': 'استغرق الخادم وقتاً طويلاً للرد. يرجى المحاولة مرة أخرى (الخادم يستيقظ).'});
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _messages.removeLast();
         _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة. تأكد من الإنترنت.'});
       });
     }
