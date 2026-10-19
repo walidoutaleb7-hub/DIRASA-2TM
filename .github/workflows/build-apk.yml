@@ -27,7 +27,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-v7
+          key: ${{ runner.os }}-gradle-debug-v9
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -74,21 +74,25 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # ✅ الخطوة التي تولد الأيقونات
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
 
       - name: Build Debug APK
         run: flutter build apk --debug --target-platform android-arm64
 
+      # ✅ خطوة استخراج البصمة
+      - name: Get SHA-1 Fingerprint
+        run: |
+          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-debug.apk
+
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
           artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "icon-fix-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Icon Fix ${{ github.run_number }}"
-          body: "نسخة مع الأيقونة الأصلية"
+          tag: "final-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Build ${{ github.run_number }}"
+          body: "النسخة النهائية"
           draft: false
           prerelease: true
           allowUpdates: true
