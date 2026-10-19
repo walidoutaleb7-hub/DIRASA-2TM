@@ -1,11 +1,14 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../widgets/glass_widgets.dart';
 import 'conference_screen.dart';
 import 'ai_screen.dart';
 import 'social_screen.dart';
 import 'chat_list_screen.dart';
+import 'profile_screen.dart';
+import 'settings_screen.dart';
+import 'whiteboard_screen.dart';
+import 'leaderboard_screen.dart';
+import 'subject_rooms_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,13 +25,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       extendBody: true,
       body: IndexedStack(index: _currentIndex, children: _pages),
-      
-      // شريط التنقل العائم
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         height: 70,
         decoration: BoxDecoration(
-          color: AppTheme.cardColor.withOpacity(0.8),
+          color: AppTheme.cardColor.withOpacity(0.9),
           borderRadius: BorderRadius.circular(35),
           border: Border.all(color: Colors.white.withOpacity(0.1)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, 10))],
@@ -56,7 +57,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           color: isSelected ? AppTheme.primaryColor.withOpacity(0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(25),
           border: isSelected ? Border.all(color: AppTheme.primaryColor.withOpacity(0.5)) : null,
-          boxShadow: isSelected ? [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.2), blurRadius: 10)] : [],
         ),
         child: Row(
           children: [
@@ -72,13 +72,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class HomeTab extends StatefulWidget {
+class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
-  @override
-  State<HomeTab> createState() => _HomeTabState();
-}
 
-class _HomeTabState extends State<HomeTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,7 +82,8 @@ class _HomeTabState extends State<HomeTab> {
       appBar: AppBar(
         title: const Text('DIRASA 2TM', style: TextStyle(color: Colors.white, letterSpacing: 2, fontSize: 20)),
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.white), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.person_outline, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
+          IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
         ],
       ),
       body: SingleChildScrollView(
@@ -94,29 +91,25 @@ class _HomeTabState extends State<HomeTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('مرحباً، وليد', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text('أهلاً بك، وليد', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
             const Text('جاهز لتحطيم أهدافك اليوم؟', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
             
-            // المؤقت الفخم
-            Center(child: _buildCustomTimer()),
-            const SizedBox(height: 40),
-
-            // الأدوات
-            const Text('أدواتك الذكية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            // الأدوات (شبكة)
+            const Text('أدواتك الخارقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
               children: [
-                _buildToolCard(Icons.smart_toy_rounded, 'المساعد', AppTheme.secondaryColor, () => Navigator.push(context, PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => const AIScreen(),
-                  transitionsBuilder: (_, animation, __, child) => SlideTransition(position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation), child: child),
-                ))),
-                _buildToolCard(Icons.video_call_rounded, 'اجتماع', AppTheme.primaryColor, () => Navigator.push(context, PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => const ConferenceScreen(conferenceID: 'DIRASA_ROOM', userName: 'Walid'),
-                  transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
-                ))),
-                _buildToolCard(Icons.leaderboard_rounded, 'المتصدرين', Colors.orangeAccent, () {}),
+                _buildToolCard(Icons.smart_toy_rounded, 'المساعد AI', AppTheme.secondaryColor, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AIScreen()))),
+                _buildToolCard(Icons.video_call_rounded, 'اجتماع جديد', AppTheme.primaryColor, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConferenceScreen(conferenceID: 'DIRASA_ROOM', userName: 'Walid')))),
+                _buildToolCard(Icons.draw_rounded, 'السبورة', Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
+                _buildToolCard(Icons.emoji_events_rounded, 'المتصدرين', Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
+                _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
               ],
             ),
           ],
@@ -125,60 +118,24 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildCustomTimer() {
-    return Container(
-      width: 260,
-      height: 260,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: SweepGradient(
-          colors: [AppTheme.primaryColor.withOpacity(0), AppTheme.primaryColor],
-          stops: const [0.75, 1.0],
-          startAngle: -math.pi / 2,
-        ),
-        boxShadow: AppTheme.cyanGlow,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(4), // سمك الحلقة
-        child: Container(
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: AppTheme.cardColor),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('25:00', style: TextStyle(fontSize: 56, fontWeight: FontWeight.w200, color: Colors.white, letterSpacing: 2)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                  child: const Text('ابدأ التركيز', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildToolCard(IconData icon, String title, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withOpacity(0.3)),
-              boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 15, spreadRadius: 1)],
-            ),
-            child: Icon(icon, color: color, size: 30),
-          ),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ],
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: color.withOpacity(0.3)),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 40),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
       ),
     );
   }
