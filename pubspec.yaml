@@ -19,6 +19,7 @@ dependencies:
   http: ^1.2.0
   google_generative_ai: ^0.4.7
   image_picker: ^1.0.7
+  youtube_player_iframe: ^4.0.4
   google_fonts: ^6.1.0
   permission_handler: ^13.0.2
 

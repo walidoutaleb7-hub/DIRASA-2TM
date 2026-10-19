@@ -1,42 +1,71 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'conference_screen.dart';
+import 'subject_room_detail_screen.dart';
 
 class SubjectRoomsScreen extends StatelessWidget {
   const SubjectRoomsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final rooms = [
-      {'name': 'الرياضيات', 'id': 'MATH_ROOM_2TM', 'icon': Icons.calculate, 'color': Colors.blueAccent},
-      {'name': 'الفيزياء', 'id': 'PHYSICS_ROOM_2TM', 'icon': Icons.science, 'color': Colors.greenAccent},
-      {'name': 'البرمجة', 'id': 'CODE_ROOM_2TM', 'icon': Icons.code, 'color': Colors.purpleAccent},
-      {'name': 'المراجعة العامة', 'id': 'GENERAL_STUDY_2TM', 'icon': Icons.menu_book, 'color': Colors.orangeAccent},
+    final subjects = [
+      {'name': 'الرياضيات', 'id': 'MATH', 'icon': Icons.calculate, 'color': Colors.blueAccent},
+      {'name': 'الهندسة المدنية', 'id': 'CIVIL', 'icon': Icons.engineering, 'color': Colors.orange},
+      {'name': 'الميكانيك', 'id': 'MECH', 'icon': Icons.settings, 'color': Colors.grey},
+      {'name': 'هندسة الطرائق', 'id': 'PROCESS', 'icon': Icons.science, 'color': Colors.teal},
+      {'name': 'اللغة العربية', 'id': 'ARABIC', 'icon': Icons.menu_book, 'color': Colors.green},
+      {'name': 'اللغة الفرنسية', 'id': 'FRENCH', 'icon': Icons.translate, 'color': Colors.blue},
+      {'name': 'التاريخ والجغرافيا', 'id': 'HISTORY', 'icon': Icons.public, 'color': Colors.brown},
+      {'name': 'اللغة الإنجليزية', 'id': 'ENGLISH', 'icon': Icons.language, 'color': Colors.redAccent},
+      {'name': 'العلوم الإسلامية', 'id': 'ISLAMIC', 'icon': Icons.mosque, 'color': Colors.amber},
+      {'name': 'العلوم الفيزيائية', 'id': 'PHYSICS', 'icon': Icons.bolt, 'color': Colors.purpleAccent},
+      {'name': 'اللغة الأمازيغية', 'id': 'AMAZIGH', 'icon': Icons.abc, 'color': Colors.cyan},
+      {'name': 'المراجعة العامة', 'id': 'GENERAL', 'icon': Icons.group, 'color': Colors.pinkAccent},
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('قاعات الدراسة الدائمة')),
-      body: ListView.builder(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: const Text('قاعات المواد الدراسية')),
+      body: GridView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: rooms.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.1,
+        ),
+        itemCount: subjects.length,
         itemBuilder: (context, index) {
-          var room = rooms[index];
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: (room['color'] as Color).withOpacity(0.2), shape: BoxShape.circle),
-                child: Icon(room['icon'] as IconData, color: room['color'] as Color, size: 30),
+          var subject = subjects[index];
+          Color color = subject['color'] as Color;
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => SubjectRoomDetailScreen(
+                  subjectName: subject['name'] as String,
+                  roomId: subject['id'] as String,
+                )
+              ));
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+                boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 15)],
               ),
-              title: Text(room['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-              subtitle: const Text('متاحة دائماً للدخول', style: TextStyle(color: Colors.grey)),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.primaryColor),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: room['id'] as String, userName: 'طالب')));
-              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(subject['icon'] as IconData, size: 40, color: color),
+                  const SizedBox(height: 12),
+                  Text(
+                    subject['name'] as String,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         },

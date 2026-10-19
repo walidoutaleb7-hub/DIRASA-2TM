@@ -1,120 +1,96 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  // 🔑 إصلاح الانهيار: استخدام علامة استفهام بدلاً من التعجب
-  final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-  final TextEditingController _statusController = TextEditingController();
-  bool _isLoading = false;
-  Uint8List? _pickedImageBytes;
-
-  void _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50, maxWidth: 300);
-    if (pickedFile != null) {
-      final bytes = await pickedFile.readAsBytes();
-      setState(() => _pickedImageBytes = bytes);
-    }
-  }
-
-  void _saveProfile(String currentStatus) async {
-    setState(() => _isLoading = true);
-    if (_pickedImageBytes != null) await AuthService.updateProfileImage(_pickedImageBytes!);
-    if (_statusController.text.trim().isNotEmpty && _statusController.text != currentStatus) {
-      await AuthService.updateStatus(_statusController.text.trim());
-    }
-    setState(() {
-      _isLoading = false;
-      _pickedImageBytes = null;
-    });
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث الملف الشخصي!')));
-  }
 
   @override
   Widget build(BuildContext context) {
-    // إذا لم يكن هناك مستخدم في Firebase (لأننا في وضع الطوارئ)، نعرض شاشة بسيطة
-    if (currentUserId == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('الملف الشخصي')),
-        body: const Center(child: Text('الملف الشخصي غير متاح في الوضع المحلي.')),
-      );
-    }
+    final currentId = AuthService.currentUserId;
 
     return Scaffold(
+      backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('الملف الشخصي')),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').doc(currentUserId).snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          
-          var user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-          String currentStatus = user['status'] ?? 'متاح للدراسة';
-          
-          if (_statusController.text.isEmpty) _statusController.text = currentStatus;
+      body: currentId == null
+          ? const Center(child: Text('يرجى تسجيل الدخول', style: TextStyle(color: Colors.white)))
+          : StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(currentId).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+                var user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-          Uint8List? imageBytes;
-          if (_pickedImageBytes != null) {
-            imageBytes = _pickedImageBytes;
-          } else if (user['profileImage'] != null && user['profileImage'].toString().isNotEmpty) {
-            imageBytes = base64Decode(user['profileImage']);
-          }
+                String name = user['name'] ?? 'مستخدم';
+                int studyTime = user['studyTime'] ?? 0;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Stack(
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
                     children: [
+                      // صورة الملف الشخصي
                       CircleAvatar(
                         radius: 60,
-                        backgroundColor: AppTheme.cardColor,
-                        backgroundImage: imageBytes != null ? MemoryImage(imageBytes) : null,
-                        child: imageBytes == null ? const Icon(Icons.person, size: 60, color: AppTheme.textSecondary) : null,
+                        backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                        child: Text(name[0], style: const TextStyle(fontSize: 50, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
                       ),
-                      Positioned(
-                        bottom: 0, right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(color: AppTheme.primaryColor, shape: BoxShape.circle),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                        ),
+                      const SizedBox(height: 16),
+                      Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
+                        child: Text(user['status'] ?? 'متاح للدراسة', style: const TextStyle(color: Colors.grey)),
+                      ),
+                      const SizedBox(height: 32),
+                      
+                      // إحصائيات مثل إنستغرام
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildStatCard('ساعات الدراسة', '${studyTime ~/ 60} ساعة'),
+                          _buildStatCard('أيام النشاط', '${(studyTime ~/ 60) % 7} أيام'), // حساب تقريبي
+                          _buildStatCard('الرتبة', 'طالب'),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // شبكة أيام الدراسة (Heatmap مصغر)
+                      const Align(alignment: Alignment.centerRight, child: Text('نشاط الدراسة الأسبوعي', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(7, (index) {
+                          bool isActive = (studyTime ~/ 60) % 7 > index;
+                          return Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: isActive ? AppTheme.primaryColor : AppTheme.cardColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Center(child: Text(['س','ح','ن','ث','ر','خ','ج'][index], style: TextStyle(color: isActive ? Colors.white : Colors.grey))),
+                          );
+                        }),
                       )
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(user['name'] ?? 'مستخدم', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 32),
-                TextField(
-                  controller: _statusController,
-                  decoration: const InputDecoration(labelText: 'الحالة (ماذا تفعل الآن؟)', prefixIcon: Icon(Icons.info_outline)),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : () => _saveProfile(currentStatus),
-                    child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('حفظ التغييرات'),
-                  ),
-                )
-              ],
+                );
+              },
             ),
-          );
-        },
+    );
+  }
+
+  Widget _buildStatCard(String title, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
+      child: Column(
+        children: [
+          Text(value, style: const TextStyle(color: AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        ],
       ),
     );
   }

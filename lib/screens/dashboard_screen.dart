@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'conference_screen.dart';
 import 'ai_screen.dart';
 import 'social_screen.dart';
