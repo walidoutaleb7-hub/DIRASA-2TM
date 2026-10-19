@@ -28,7 +28,6 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # ⚡ تسريع 1: حفظ ملفات Gradle
       - name: Cache Gradle
         uses: actions/cache@v3
         with:
@@ -39,65 +38,43 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # ⚡ تسريع 2: حفظ مكتبات Flutter
-      - name: Cache Pub
-        uses: actions/cache@v3
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-
-      # ⚡ تسريع 3: حفظ محرك الأندرويد (NDK) و CMake (هذا هو سر الـ 17 دقيقة)
-      - name: Cache NDK and CMake
-        uses: actions/cache@v3
-        with:
-          path: |
-            /usr/local/lib/android/sdk/ndk
-            /usr/local/lib/android/sdk/cmake
-          key: ${{ runner.os }}-ndk-cmake
-          restore-keys: |
-            ${{ runner.os }}-ndk-cmake
-
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      # إصلاح Manifest باستخدام Python لضمان سلامة الـ XML
       - name: Fix App Name, Permissions, and Exported
         run: |
           python3 -c '
           import xml.etree.ElementTree as ET
           import os
-          
           path = "android/app/src/main/AndroidManifest.xml"
           if os.path.exists(path):
               ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
               tree = ET.parse(path)
               root = tree.getroot()
-              
               app = root.find("application")
               if app is not None:
                   app.set("{http://schemas.android.com/apk/res/android}label", "DIRASA 2TM")
                   act = app.find("activity")
                   if act is not None:
                       act.set("{http://schemas.android.com/apk/res/android}exported", "true")
-                      
               perms = ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "INTERNET", "ACCESS_NETWORK_STATE", "BLUETOOTH"]
               existing = [p.get("{http://schemas.android.com/apk/res/android}name") for p in root.findall("uses-permission")]
-              
               for p in perms:
                   full_p = "android.permission." + p
                   if full_p not in existing:
                       ET.SubElement(root, "uses-permission", {"{http://schemas.android.com/apk/res/android}name": full_p})
-                      
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
 
       - name: Fix Gradle Config (Package, MinSdk, Proguard)
         run: |
+          # نسخ ملف قواعد الحماية إلى مجلد الأندرويد
+          cp proguard-rules.pro android/app/proguard-rules.pro || true
+          
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/applicationId = ".*"/applicationId = "com.example.video_meet_app"/g' android/app/build.gradle.kts
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle.kts
+            # تعطيل التصغير والحذف لضمان عدم الإغلاق المفاجئ
             sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
             sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
           elif [ -f android/app/build.gradle ]; then
