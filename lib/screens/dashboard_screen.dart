@@ -9,6 +9,7 @@ import 'settings_screen.dart';
 import 'whiteboard_screen.dart';
 import 'leaderboard_screen.dart';
 import 'subject_rooms_screen.dart';
+import 'qr_code_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -95,7 +96,6 @@ class HomeTab extends StatelessWidget {
             const Text('جاهز لتحطيم أهدافك اليوم؟', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
             const SizedBox(height: 30),
             
-            // الأدوات (شبكة)
             const Text('أدواتك الخارقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 16),
             GridView.count(
@@ -106,7 +106,10 @@ class HomeTab extends StatelessWidget {
               mainAxisSpacing: 16,
               children: [
                 _buildToolCard(Icons.smart_toy_rounded, 'المساعد AI', AppTheme.secondaryColor, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AIScreen()))),
-                _buildToolCard(Icons.video_call_rounded, 'اجتماع جديد', AppTheme.primaryColor, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConferenceScreen(conferenceID: 'DIRASA_ROOM', userName: 'Walid')))),
+                _buildToolCard(Icons.video_call_rounded, 'اجتماع جديد', AppTheme.primaryColor, () {
+                  String newRoom = 'DIRASA_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => QRCodeScreen(roomId: newRoom)));
+                }),
                 _buildToolCard(Icons.draw_rounded, 'السبورة', Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
                 _buildToolCard(Icons.emoji_events_rounded, 'المتصدرين', Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
                 _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
