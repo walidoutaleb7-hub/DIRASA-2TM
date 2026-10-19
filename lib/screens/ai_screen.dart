@@ -30,23 +30,22 @@ class _AIScreenState extends State<AIScreen> {
     setState(() {
       _messages.add({'role': 'user', 'text': userText});
       _isLoading = true;
-      // رسالة مؤقتة توضح للمستخدم أن الخادم يستيقظ
-      _messages.add({'role': 'ai', 'text': 'جاري الاتصال بالخادم... (قد يستغرق 30 ثانية إذا كان في وضع السكون)'});
+      _messages.add({'role': 'ai', 'text': 'جاري الاتصال بالخادم...'});
     });
     _scrollToBottom();
 
     try {
       List<Map<String, String>> history = [];
+      // بناء السجل مع تجاهل رسائل الترحيب والتحميل
       for (var msg in _messages) {
         if (msg['role'] == 'user') {
           history.add({'role': 'user', 'parts': msg['text']});
-        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري الاتصال')) {
+        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري الاتصال') && !msg['text'].contains('مرحباً بك في DIRASA AI')) {
           history.add({'role': 'model', 'parts': msg['text']});
         }
       }
-      if (history.isNotEmpty) history.removeLast();
+      if (history.isNotEmpty) history.removeLast(); // حذف آخر رسالة للمستخدم لأننا سنرسلها في message
 
-      // ⏳ زيادة وقت الانتظار إلى 60 ثانية
       final response = await http.post(
         Uri.parse(_backendUrl),
         headers: {'Content-Type': 'application/json'},
@@ -60,21 +59,22 @@ class _AIScreenState extends State<AIScreen> {
         final data = jsonDecode(response.body);
         setState(() {
           _isLoading = false;
-          _messages.removeLast(); // إزالة رسالة "جاري الاتصال"
+          _messages.removeLast(); 
           _messages.add({'role': 'ai', 'text': data['reply'] ?? 'عذراً، لم أفهم.'});
         });
       } else {
+        final data = jsonDecode(response.body);
         setState(() {
           _isLoading = false;
           _messages.removeLast();
-          _messages.add({'role': 'ai', 'text': 'حدث خطأ في الخادم. الرجاء المحاولة لاحقاً.'});
+          _messages.add({'role': 'ai', 'text': 'خطأ: ${data['error']}'});
         });
       }
     } on TimeoutException {
       setState(() {
         _isLoading = false;
         _messages.removeLast();
-        _messages.add({'role': 'ai', 'text': 'استغرق الخادم وقتاً طويلاً للرد. يرجى المحاولة مرة أخرى (الخادم يستيقظ).'});
+        _messages.add({'role': 'ai', 'text': 'استغرق الخادم وقتاً طويلاً للرد. يرجى المحاولة مرة أخرى.'});
       });
     } catch (e) {
       setState(() {
