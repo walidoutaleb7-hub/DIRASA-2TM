@@ -10,3 +10,7 @@
 # الحفاظ على فئات Flutter الأساسية
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
+
+# إخفاء تحذيرات مكتبات جوجل غير الضرورية
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
