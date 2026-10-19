@@ -20,7 +20,6 @@ dependencies:
   google_generative_ai: ^0.4.7
   image_picker: ^1.0.7
   google_fonts: ^6.1.0
-  # ✅ تم تحديث مكتبة الأذونات لتتوافق مع Zego
   permission_handler: ^13.0.2
 
 dev_dependencies:
@@ -32,13 +31,12 @@ dependency_overrides:
   intl: ^0.19.0
   web: ^1.0.0
   firebase_core_platform_interface: ^5.0.0
-  # تم إزالة permission_handler_android من هنا لتجنب التعارض
 
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/app_icon.png"
-  adaptive_icon_background: "#000000"
+  adaptive_icon_background: "#050505"
   adaptive_icon_foreground: "assets/app_icon.png"
 
 flutter:
