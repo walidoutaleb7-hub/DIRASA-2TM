@@ -27,7 +27,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-v9
+          key: ${{ runner.os }}-gradle-debug-v10
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -80,10 +80,11 @@ jobs:
       - name: Build Debug APK
         run: flutter build apk --debug --target-platform android-arm64
 
-      # ✅ خطوة استخراج البصمة
+      # ✅ الطريقة الصحيحة لاستخراج البصمة
       - name: Get SHA-1 Fingerprint
         run: |
-          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-debug.apk
+          cd android
+          ./gradlew signingReport
 
       - name: Upload APK
         uses: ncipollo/release-action@v1
@@ -92,7 +93,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: "final-v1.0.${{ github.run_number }}"
           name: "DIRASA 2TM - Build ${{ github.run_number }}"
-          body: "النسخة النهائية"
+          body: "النسخة النهائية مع الميزات الجديدة"
           draft: false
           prerelease: true
           allowUpdates: true
