@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:markdown_widget/markdown_widget.dart'; // ✅ المكتبة الجديدة
 import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 
@@ -30,21 +31,20 @@ class _AIScreenState extends State<AIScreen> {
     setState(() {
       _messages.add({'role': 'user', 'text': userText});
       _isLoading = true;
-      _messages.add({'role': 'ai', 'text': 'جاري الاتصال بالخادم...'});
+      _messages.add({'role': 'ai', 'text': 'جاري التفكير...'});
     });
     _scrollToBottom();
 
     try {
       List<Map<String, String>> history = [];
-      // بناء السجل مع تجاهل رسائل الترحيب والتحميل
       for (var msg in _messages) {
         if (msg['role'] == 'user') {
           history.add({'role': 'user', 'parts': msg['text']});
-        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري الاتصال') && !msg['text'].contains('مرحباً بك في DIRASA AI')) {
+        } else if (msg['role'] == 'ai' && !msg['text'].contains('جاري') && !msg['text'].contains('مرحباً بك')) {
           history.add({'role': 'model', 'parts': msg['text']});
         }
       }
-      if (history.isNotEmpty) history.removeLast(); // حذف آخر رسالة للمستخدم لأننا سنرسلها في message
+      if (history.isNotEmpty) history.removeLast();
 
       final response = await http.post(
         Uri.parse(_backendUrl),
@@ -63,24 +63,17 @@ class _AIScreenState extends State<AIScreen> {
           _messages.add({'role': 'ai', 'text': data['reply'] ?? 'عذراً، لم أفهم.'});
         });
       } else {
-        final data = jsonDecode(response.body);
         setState(() {
           _isLoading = false;
           _messages.removeLast();
-          _messages.add({'role': 'ai', 'text': 'خطأ: ${data['error']}'});
+          _messages.add({'role': 'ai', 'text': 'حدث خطأ في الخادم.'});
         });
       }
-    } on TimeoutException {
-      setState(() {
-        _isLoading = false;
-        _messages.removeLast();
-        _messages.add({'role': 'ai', 'text': 'استغرق الخادم وقتاً طويلاً للرد. يرجى المحاولة مرة أخرى.'});
-      });
     } catch (e) {
       setState(() {
         _isLoading = false;
         _messages.removeLast();
-        _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة. تأكد من الإنترنت.'});
+        _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة.'});
       });
     }
     _scrollToBottom();
@@ -121,6 +114,7 @@ class _AIScreenState extends State<AIScreen> {
               itemBuilder: (context, index) {
                 var msg = _messages[index];
                 bool isUser = msg['role'] == 'user';
+                
                 return Align(
                   alignment: isUser ? Alignment.centerLeft : Alignment.centerRight,
                   child: Container(
@@ -137,9 +131,24 @@ class _AIScreenState extends State<AIScreen> {
                       ),
                       border: isUser ? null : Border.all(color: Colors.grey.shade800),
                     ),
-                    child: Text(
-                      msg['text'],
-                      style: TextStyle(fontSize: 16, height: 1.5, color: isUser ? Colors.white : AppTheme.textPrimary),
+                    // ✅ استخدام MarkdownWidget مع دعم LaTeX
+                    child: MarkdownWidget(
+                      data: msg['text'],
+                      shrinkWrap: true,
+                      config: MarkdownConfig(
+                        configs: [
+                          LatexConfig(), // تفعيل ترجمة المعادلات الرياضية
+                          PConfig(
+                            textStyle: TextStyle(fontSize: 16, height: 1.6, color: isUser ? Colors.white : AppTheme.textPrimary),
+                          ),
+                          H1Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 22, fontWeight: FontWeight.bold)),
+                          H2Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
+                          H3Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                          CodeConfig(style: TextStyle(color: Colors.amberAccent, backgroundColor: Colors.black45, fontFamily: 'monospace')),
+                          LinkConfig(style: TextStyle(color: AppTheme.primaryColor, decoration: TextDecoration.underline)),
+                          ListConfig(marker: (index, listType) => Text('•', style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18))),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -162,10 +171,12 @@ class _AIScreenState extends State<AIScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    style: const TextStyle(color: Colors.white),
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _askAI(),
                     decoration: InputDecoration(
                       hintText: 'اسأل عن أي شيء دراسي...',
+                      hintStyle: const TextStyle(color: Colors.grey),
                       filled: true,
                       fillColor: AppTheme.cardColor,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
