@@ -38,16 +38,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Cache NDK and CMake
-        uses: actions/cache@v3
-        with:
-          path: |
-            /usr/local/lib/android/sdk/ndk
-            /usr/local/lib/android/sdk/cmake
-          key: ${{ runner.os }}-ndk-cmake
-          restore-keys: |
-            ${{ runner.os }}-ndk-cmake
-
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
@@ -76,28 +66,37 @@ jobs:
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
 
-      - name: Fix Gradle Config (Package, MinSdk, Disable Minify)
+      - name: Fix Gradle Config (MultiDex, Package, MinSdk)
         run: |
-          # نسخ ملف الحماية
           cp proguard-rules.pro android/app/proguard-rules.pro || true
           
-          # تعديل ملفات Groovy (build.gradle)
+          # تعديل ملفات Kotlin DSL (التي يستخدمها Flutter حالياً)
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/applicationId = ".*"/applicationId = "com.example.video_meet_app"/g' android/app/build.gradle.kts
+            sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle.kts
+            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
+            sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
+            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
+            sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
+            
+            # إضافة MultiDex
+            if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
+              sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
+            fi
+          fi
+
+          # تعديل ملفات Groovy
           if [ -f android/app/build.gradle ]; then
             sed -i 's/applicationId ".*"/applicationId "com.example.video_meet_app"/g' android/app/build.gradle
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle
             sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle
             sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle
-          fi
-
-          # تعديل ملفات Kotlin DSL (build.gradle.kts) - هذا هو سبب المشكلة السابقة
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/applicationId = ".*"/applicationId = "com.example.video_meet_app"/g' android/app/build.gradle.kts
-            sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
-            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
-            sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
-            # تأكد من إزالة السطر القديم إذا وجد
-            sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
-            sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
+            
+            # إضافة MultiDex
+            if ! grep -q "multiDexEnabled" android/app/build.gradle; then
+              sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled true/' android/app/build.gradle
+            fi
           fi
 
       - name: Setup Firebase Config
@@ -150,7 +149,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: "v1.0.${{ github.run_number }}"
           name: "DIRASA 2TM - Build ${{ github.run_number }}"
-          body: "تطبيق DIRASA 2TM - نسخة مستقرة ومحسنة"
+          body: "تطبيق DIRASA 2TM - نسخة مستقرة"
           draft: false
           prerelease: false
           allowUpdates: true

@@ -50,7 +50,7 @@ class AuthService {
           'email': email,
           'uid': userCred.user!.uid,
           'status': 'متاح للدراسة',
-          'profileImage': '', // صورة فارغة مبدئياً
+          'profileImage': '',
           'studyTime': 0,
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -65,25 +65,24 @@ class AuthService {
   }
 
   static Future<void> updateStudyTime(int minutes) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid != null) {
-      await _db.collection('users').doc(uid).update({'studyTime': FieldValue.increment(minutes)});
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _db.collection('users').doc(user.uid).update({'studyTime': FieldValue.increment(minutes)});
     }
   }
 
   static Future<void> updateStatus(String status) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid != null) {
-      await _db.collection('users').doc(uid).update({'status': status});
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _db.collection('users').doc(user.uid).update({'status': status});
     }
   }
 
-  // دالة جديدة لحفظ الصورة (Base64) في قاعدة البيانات
   static Future<void> updateProfileImage(List<int> imageBytes) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid != null) {
+    final user = _auth.currentUser;
+    if (user != null) {
       String base64Image = base64Encode(imageBytes);
-      await _db.collection('users').doc(uid).update({'profileImage': base64Image});
+      await _db.collection('users').doc(user.uid).update({'profileImage': base64Image});
     }
   }
 

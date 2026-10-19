@@ -1,19 +1,41 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
 import 'screens/splash_screen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Firebase initialization failed: $e");
-    // التطبيق سيكمل عمله حتى لو فشل Firebase مؤقتاً
-  }
-  
-  runApp(const MyApp());
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // اعتراض أي خطأ وعرضه على الشاشة بدلاً من الإغلاق
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      return MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.red,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'حدث خطأ:\n\n${details.exception}\n\n${details.stack}',
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+    };
+
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      debugPrint("Firebase Error: $e");
+    }
+
+    runApp(const MyApp());
+  }, (error, stackTrace) {
+    debugPrint("Caught error: $error");
+  });
 }
 
 class MyApp extends StatelessWidget {
