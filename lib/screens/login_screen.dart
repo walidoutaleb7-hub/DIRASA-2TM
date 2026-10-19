@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/glass_widgets.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
 
@@ -16,54 +17,70 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
-    
-    bool success = await AuthService.login(_nameController.text.trim());
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (success) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('حدث خطأ في الاتصال بالخادم، تأكد من الإنترنت.')),
-        );
-      }
-    }
+    await AuthService.login(_nameController.text.trim());
+    if (mounted) Navigator.pushReplacement(context, PageRouteBuilder(
+      pageBuilder: (_, __, ___) => const DashboardScreen(),
+      transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+      transitionDuration: const Duration(milliseconds: 500),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('مرحباً بك', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-            const SizedBox(height: 8),
-            const Text('قم بإدخال اسمك للانضمام إلى القسم', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
-            const SizedBox(height: 48),
-            TextField(
-              controller: _nameController,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: const InputDecoration(
-                labelText: 'الاسم الكامل',
-                prefixIcon: Icon(Icons.person_outline),
+      body: Stack(
+        children: [
+          // خلفية متوهجة
+          Positioned(
+            top: -100, right: -100,
+            child: Container(width: 300, height: 300, decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.primaryColor.withOpacity(0.15), boxShadow: AppTheme.cyanGlow)),
+          ),
+          Positioned(
+            bottom: -100, left: -100,
+            child: Container(width: 300, height: 300, decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.secondaryColor.withOpacity(0.15), boxShadow: AppTheme.purpleGlow)),
+          ),
+          
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.school, size: 80, color: AppTheme.primaryColor),
+                  const SizedBox(height: 20),
+                  Text('DIRASA 2TM', style: Theme.of(context).textTheme.displayLarge),
+                  const SizedBox(height: 10),
+                  const Text('مستقبل التعليم يبدأ هنا', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+                  const SizedBox(height: 50),
+                  
+                  GlassCard(
+                    child: TextField(
+                      controller: _nameController,
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        hintText: 'أدخل اسمك',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
+                        icon: Icon(Icons.person, color: AppTheme.primaryColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    child: NeonButton(
+                      text: _isLoading ? 'جاري الدخول...' : 'ابدأ الرحلة',
+                      icon: Icons.arrow_forward,
+                      onTap: _isLoading ? () {} : _login,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _login,
-                child: _isLoading 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('متابعة'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
