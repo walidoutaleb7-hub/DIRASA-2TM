@@ -1,4 +1,4 @@
-name: Build Flutter APK (Android 16 Ready)
+name: Build Flutter APK (Debug)
 
 on:
   push:
@@ -21,34 +21,24 @@ jobs:
         with:
           channel: 'stable'
           cache: true
-      - name: Cache Gradle & NDK
+      - name: Cache Gradle
         uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            /usr/local/lib/android/sdk/ndk
-          key: ${{ runner.os }}-gradle-ndk-v1
+          key: ${{ runner.os }}-gradle-debug
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      - name: Force Android 16 Compatibility (SDK 36, MultiDex, Manifest)
+      - name: Force Android 16 Compatibility (SDK 36, Manifest)
         run: |
-          # 1. إجبار targetSdk و compileSdk على 36
+          # إجبار targetSdk و compileSdk على 36
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
           
-          # 2. إضافة MultiDex وتعطيل Minify بشكل صحيح
-          sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
-          sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
-          
-          # إضافة MultiDex إذا لم تكن موجودة
-          if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
-            sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
-          fi
-
-          # 3. إصلاح إعدادات Firebase و الأذونات في Manifest
+          # إصلاح إعدادات Firebase و الأذونات في Manifest
           python3 -c '
           import xml.etree.ElementTree as ET, os
           path = "android/app/src/main/AndroidManifest.xml"
@@ -74,26 +64,24 @@ jobs:
       - name: Setup Firebase Config
         run: |
           cp google-services.json android/app/google-services.json
-          # إضافة إضافة Firebase إلى settings.gradle.kts
           sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services") version "4.4.1" apply false/' android/settings.gradle.kts
-          # تطبيق الإضافة في build.gradle.kts
           sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK for arm64 only
-        run: flutter build apk --release --target-platform android-arm64
+      - name: Build Debug APK
+        run: flutter build apk --debug --target-platform android-arm64
 
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
+          artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Build ${{ github.run_number }}"
-          body: "النسخة النهائية المستقرة - دعم أندرويد 16"
+          tag: "debug-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Debug Build ${{ github.run_number }}"
+          body: "نسخة التطوير لمعرفة سبب الإغلاق"
           draft: false
-          prerelease: false
+          prerelease: true
           allowUpdates: true
           replacesArtifacts: true
