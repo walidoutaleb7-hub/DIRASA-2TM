@@ -27,7 +27,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-v4
+          key: ${{ runner.os }}-gradle-debug-v5
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -74,6 +74,10 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      # توليد الأيقونات
+      - name: Generate App Icons
+        run: dart run flutter_launcher_icons
+
       - name: Build Debug APK
         run: flutter build apk --debug --target-platform android-arm64
 
@@ -82,9 +86,9 @@ jobs:
         with:
           artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "debug-full-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Full Debug ${{ github.run_number }}"
-          body: "نسخة اختبارية كاملة"
+          tag: "final-test-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Final Test ${{ github.run_number }}"
+          body: "النسخة النهائية - بدون رمز سري"
           draft: false
           prerelease: true
           allowUpdates: true
