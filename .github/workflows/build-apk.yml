@@ -37,7 +37,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-universal-v1
+          key: ${{ runner.os }}-gradle-universal-v2
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -65,7 +65,7 @@ jobs:
               app = root.find("application")
               if app is not None:
                   app.set("{http://schemas.android.com/apk/res/android}label", "DIRASA 2TM")
-                  app.set("{http://schemas.android.com/apk/res/android}extractNativeLibs", "true")
+                  # تم حذف سطر extractNativeLibs من هنا
                   act = app.find("activity")
                   if act is not None:
                       act.set("{http://schemas.android.com/apk/res/android}exported", "true")
@@ -79,9 +79,12 @@ jobs:
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 34/g' android/app/build.gradle.kts
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
           
-          # إيقاف أي ضغط للكود أو الموارد
+          # إيقاف أي ضغط للكود
           sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
           sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
+          
+          # إضافة packagingOptions في المكان الصحيح
+          sed -i 's/android {/android {\n    packagingOptions {\n        jniLibs {\n            useLegacyPackaging = true\n        }\n    }/' android/app/build.gradle.kts
           
           if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
             sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
@@ -99,7 +102,6 @@ jobs:
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
 
-      # 🚀 بناء نسخة شاملة لكل الهواتف، وبدون أي ضغط (--no-shrink)
       - name: Build Universal APK
         run: flutter build apk --release --no-shrink
 
