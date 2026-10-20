@@ -12,7 +12,20 @@
           "package_name": "com.example.video_meet_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "745868828443-87u00q5mr5rorla189kue2a6tkjkuahd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.video_meet_app",
+            "certificate_hash": "9203c7ab4542746178934f51f5b4e3a4795ba2f7"
+          }
+        },
+        {
+          "client_id": "745868828443-v5mvqkeue2rqadpsibqbq1lnjdkh59iv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCD2YKnMatsBWMrXh3xg_z_gbs0MYiLs_o"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "745868828443-v5mvqkeue2rqadpsibqbq1lnjdkh59iv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
