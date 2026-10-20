@@ -1,4 +1,4 @@
-name: Build Flutter APK (Release)
+name: Build Universal APK
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-release-v13
+          key: ${{ runner.os }}-gradle-universal-v1
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -46,9 +46,8 @@ jobs:
         run: |
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
           echo "org.gradle.parallel=true" >> android/gradle.properties
-          echo "org.gradle.caching=true" >> android/gradle.properties
 
-      - name: Fix Android Manifest and Permissions
+      - name: Fix Android Manifest
         run: |
           python3 -c '
           import xml.etree.ElementTree as ET, os
@@ -66,24 +65,23 @@ jobs:
               app = root.find("application")
               if app is not None:
                   app.set("{http://schemas.android.com/apk/res/android}label", "DIRASA 2TM")
+                  app.set("{http://schemas.android.com/apk/res/android}extractNativeLibs", "true")
                   act = app.find("activity")
                   if act is not None:
                       act.set("{http://schemas.android.com/apk/res/android}exported", "true")
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
 
-      # 🚀 تعطيل الضغط (Minify) لحل مشكلة الإغلاق المفاجئ
-      - name: Fix Gradle Config (SDK 37, MultiDex, Disable Minify)
+      - name: Fix Gradle Config (Universal Compatibility)
         run: |
+          # compileSdk 37 مطلوب للمكتبات الحديثة، targetSdk 34 ليعمل على جميع الهواتف
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/g' android/app/build.gradle.kts
-          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 37/g' android/app/build.gradle.kts
+          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 34/g' android/app/build.gradle.kts
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
           
-          # إيقاف الضغط وحذف الموارد
+          # إيقاف أي ضغط للكود أو الموارد
           sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
           sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
-          sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
-          sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
           
           if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
             sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
@@ -101,17 +99,18 @@ jobs:
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
 
-      - name: Build Release APK
-        run: flutter build apk --release --target-platform android-arm64 --split-per-abi
+      # 🚀 بناء نسخة شاملة لكل الهواتف، وبدون أي ضغط (--no-shrink)
+      - name: Build Universal APK
+        run: flutter build apk --release --no-shrink
 
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/*.apk"
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "stable-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Stable Build ${{ github.run_number }}"
-          body: "النسخة المستقرة بدون ضغط كود"
+          tag: "universal-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Universal Build ${{ github.run_number }}"
+          body: "النسخة الشاملة التي تعمل على جميع الهواتف"
           draft: false
           prerelease: false
           allowUpdates: true
