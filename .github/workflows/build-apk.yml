@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 🧹 مسح الملفات غير الضرورية لتوفير مساحة
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -38,12 +37,11 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-release-v12
+          key: ${{ runner.os }}-gradle-release-v13
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      # 🚀 الحل السحري: زيادة ذاكرة البناء إلى 4 جيجابايت
       - name: Increase Gradle Memory
         run: |
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
@@ -74,11 +72,19 @@ jobs:
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
 
-      - name: Fix Gradle Config (SDK 37 & MultiDex)
+      # 🚀 تعطيل الضغط (Minify) لحل مشكلة الإغلاق المفاجئ
+      - name: Fix Gradle Config (SDK 37, MultiDex, Disable Minify)
         run: |
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/g' android/app/build.gradle.kts
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 37/g' android/app/build.gradle.kts
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
+          
+          # إيقاف الضغط وحذف الموارد
+          sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
+          sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
+          sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
+          sed -i 's/shrinkResources true/shrinkResources false/g' android/app/build.gradle.kts
+          
           if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
             sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
           fi
@@ -98,19 +104,14 @@ jobs:
       - name: Build Release APK
         run: flutter build apk --release --target-platform android-arm64 --split-per-abi
 
-      - name: Get SHA-1 Fingerprint
-        run: |
-          cd android
-          ./gradlew signingReport
-
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
           artifacts: "build/app/outputs/flutter-apk/*.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "release-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Release ${{ github.run_number }}"
-          body: "النسخة الرسمية المستقرة"
+          tag: "stable-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Stable Build ${{ github.run_number }}"
+          body: "النسخة المستقرة بدون ضغط كود"
           draft: false
           prerelease: false
           allowUpdates: true
