@@ -1,4 +1,4 @@
-name: Build Flutter APK (Debug Full)
+name: Build Flutter APK (Release)
 
 on:
   push:
@@ -13,6 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # 🧹 مسح الملفات غير الضرورية لتوفير مساحة كبيرة على السيرفر
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -21,13 +31,14 @@ jobs:
         with:
           channel: 'stable'
           cache: true
+          
       - name: Cache Gradle
         uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-v10
+          key: ${{ runner.os }}-gradle-release-v11
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
@@ -77,10 +88,10 @@ jobs:
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
 
-      - name: Build Debug APK
-        run: flutter build apk --debug --target-platform android-arm64
+      # 🚀 بناء نسخة Release (أخف بكثير وأكثر استقراراً)
+      - name: Build Release APK
+        run: flutter build apk --release --target-platform android-arm64
 
-      # ✅ الطريقة الصحيحة لاستخراج البصمة
       - name: Get SHA-1 Fingerprint
         run: |
           cd android
@@ -89,12 +100,12 @@ jobs:
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
+          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "final-v1.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Build ${{ github.run_number }}"
-          body: "النسخة النهائية مع الميزات الجديدة"
+          tag: "release-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Release ${{ github.run_number }}"
+          body: "النسخة الرسمية المستقرة"
           draft: false
-          prerelease: true
+          prerelease: false
           allowUpdates: true
           replacesArtifacts: true
