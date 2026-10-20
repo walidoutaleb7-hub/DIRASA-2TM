@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 🧹 مسح الملفات غير الضرورية لتوفير مساحة كبيرة على السيرفر
+      # 🧹 مسح الملفات غير الضرورية لتوفير مساحة
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -38,10 +38,17 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-release-v11
+          key: ${{ runner.os }}-gradle-release-v12
 
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
+
+      # 🚀 الحل السحري: زيادة ذاكرة البناء إلى 4 جيجابايت
+      - name: Increase Gradle Memory
+        run: |
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+          echo "org.gradle.parallel=true" >> android/gradle.properties
+          echo "org.gradle.caching=true" >> android/gradle.properties
 
       - name: Fix Android Manifest and Permissions
         run: |
@@ -88,9 +95,8 @@ jobs:
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
 
-      # 🚀 بناء نسخة Release (أخف بكثير وأكثر استقراراً)
       - name: Build Release APK
-        run: flutter build apk --release --target-platform android-arm64
+        run: flutter build apk --release --target-platform android-arm64 --split-per-abi
 
       - name: Get SHA-1 Fingerprint
         run: |
@@ -100,7 +106,7 @@ jobs:
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/app/outputs/flutter-apk/app-release.apk"
+          artifacts: "build/app/outputs/flutter-apk/*.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: "release-v1.0.${{ github.run_number }}"
           name: "DIRASA 2TM - Release ${{ github.run_number }}"
