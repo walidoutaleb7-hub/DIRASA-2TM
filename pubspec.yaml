@@ -14,7 +14,6 @@ dependencies:
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.15.8
-  firebase_storage: ^11.7.7
   qr_flutter: ^4.1.0
   intl: ^0.19.0
   http: ^1.2.0
@@ -26,9 +25,6 @@ dependencies:
   google_sign_in: ^6.2.1
   markdown_widget: ^2.3.2+1
   flutter_math_fork: ^0.7.2
-  record: ^7.1.1
-  just_audio: ^0.9.36
-  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:
