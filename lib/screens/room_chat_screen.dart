@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
@@ -33,7 +32,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     _isLocked = widget.isLocked;
   }
 
-  void _sendMessage({String? text, String? fileUrl, String type = 'text', String? fileName}) async {
+  void _sendMessage({String? text, String? fileUrl, String type = 'text'}) async {
     if (_isLocked) return;
     String msgText = text ?? _controller.text.trim();
     if (msgText.isEmpty && fileUrl == null) return;
@@ -47,33 +46,24 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       'text': msgText,
       'type': type,
       'fileUrl': fileUrl,
-      'fileName': fileName,
       'time': FieldValue.serverTimestamp(),
     });
   }
 
-  void _pickFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-    );
+  void _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
 
-    if (result != null) {
+    if (image != null) {
       setState(() => _isUploading = true);
-      File file = File(result.files.single.path!);
-      String fileName = result.files.single.name;
-      String ext = fileName.split('.').last.toLowerCase();
+      File file = File(image.path);
       
       try {
-        String storagePath = 'rooms/${widget.roomId}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        String storagePath = 'rooms/${widget.roomId}/${DateTime.now().millisecondsSinceEpoch}.jpg';
         TaskSnapshot snapshot = await FirebaseStorage.instance.ref(storagePath).putFile(file);
         String url = await snapshot.ref.getDownloadURL();
         
-        if (ext == 'pdf') {
-          _sendMessage(text: 'ملف PDF: $fileName', fileUrl: url, type: 'file', fileName: fileName);
-        } else {
-          _sendMessage(text: 'صورة', fileUrl: url, type: 'image');
-        }
+        _sendMessage(text: 'صورة', fileUrl: url, type: 'image');
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الرفع: $e')));
       } finally {
@@ -175,18 +165,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                 borderRadius: BorderRadius.circular(10),
                                 child: Image.network(msg['fileUrl'], width: 200, fit: BoxFit.cover),
                               )
-                            else if (type == 'file')
-                              InkWell(
-                                onTap: () => launchUrl(Uri.parse(msg['fileUrl'])),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-                                    const SizedBox(width: 8),
-                                    Text(msg['fileName'] ?? 'ملف', style: const TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline)),
-                                  ],
-                                ),
-                              )
                             else
                               Text(msg['text'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
                           ],
@@ -204,7 +182,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
             color: AppTheme.cardColor,
             child: Row(
               children: [
-                IconButton(icon: const Icon(Icons.attach_file, color: Colors.grey), onPressed: _isLocked ? null : _pickFile),
+                IconButton(icon: const Icon(Icons.image, color: Colors.grey), onPressed: _isLocked ? null : _pickImage),
                 Expanded(
                   child: TextField(
                     controller: _controller, enabled: !_isLocked, style: const TextStyle(color: Colors.white),
