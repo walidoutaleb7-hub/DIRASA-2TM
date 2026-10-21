@@ -34,7 +34,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _isRecording = false;
   final RegExp _urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
 
-  void _sendMessage({String? text, String? base64Img, String? audioUrl, String type = 'text'}) async {
+  Future<void> _sendMessage({String? text, String? base64Img, String? audioUrl, String type = 'text'}) async {
     String msgText = text ?? _controller.text.trim();
     if (msgText.isEmpty && base64Img == null && audioUrl == null) return;
     if (base64Img == null && audioUrl == null) _controller.clear();
