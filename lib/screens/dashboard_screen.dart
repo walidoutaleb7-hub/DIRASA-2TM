@@ -211,7 +211,7 @@ class _HomeTabState extends State<HomeTab> {
                 }),
                 _buildToolCard(Icons.draw_rounded, 'السبورة', Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
                 _buildToolCard(Icons.emoji_events_rounded, 'المتصدرين', Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
-                _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
+                _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, PageRouteBuilder(pageBuilder: (_, __, ___) => const SubjectRoomsScreen(), transitionDuration: const Duration(milliseconds: 200), transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child)))),
               ],
             ),
             const SizedBox(height: 30),
