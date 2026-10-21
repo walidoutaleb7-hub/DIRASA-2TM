@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
 import 'settings_screen.dart';
+import 'profile_screen.dart';
 import 'social_screen.dart';
 import 'chat_list_screen.dart';
 import 'ai_screen.dart';
@@ -107,7 +108,7 @@ class HomeTab extends StatelessWidget {
       appBar: AppBar(
         title: const Text('DIRASA 2TM', style: TextStyle(color: Colors.white, letterSpacing: 2, fontSize: 20)),
         actions: [
-          IconButton(icon: const Icon(Icons.person_outline, color: Colors.white), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.person_outline, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
           IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
         ],
       ),
