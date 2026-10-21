@@ -163,7 +163,6 @@ class _AIScreenState extends State<AIScreen> {
                       shrinkWrap: true,
                       config: MarkdownConfig(
                         configs: [
-                          LatexConfig(textStyle: TextStyle(color: isUser ? Colors.white : AppTheme.textPrimary)), // دعم المعادلات
                           PConfig(textStyle: TextStyle(fontSize: 16, height: 1.6, color: isUser ? Colors.white : AppTheme.textPrimary)),
                           H1Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 22, fontWeight: FontWeight.bold)),
                           H2Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -171,15 +170,6 @@ class _AIScreenState extends State<AIScreen> {
                           CodeConfig(style: const TextStyle(color: Colors.amberAccent, backgroundColor: Colors.black45, fontFamily: 'monospace')),
                           LinkConfig(style: TextStyle(color: AppTheme.primaryColor, decoration: TextDecoration.underline)),
                           ListConfig(marker: (isTight, index, listType) => Text('•', style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18))),
-                          TableConfig( // تنسيق الجداول بشكل أنيق
-                            headerDecoration: BoxDecoration(color: AppTheme.bgColor, borderRadius: BorderRadius.circular(8)),
-                            headerPadding: const EdgeInsets.all(12),
-                            bodyDecoration: BoxDecoration(color: Colors.black26),
-                            bodyPadding: const EdgeInsets.all(10),
-                            border: TableBorder.all(color: Colors.white24),
-                            headerTextStyle: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
-                            bodyTextStyle: TextStyle(color: isUser ? Colors.white : AppTheme.textPrimary),
-                          ),
                         ],
                       ),
                     ),
