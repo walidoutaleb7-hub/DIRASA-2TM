@@ -1,9 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
 import 'settings_screen.dart';
-import 'profile_screen.dart';
 import 'social_screen.dart';
 import 'chat_list_screen.dart';
 import 'ai_screen.dart';
@@ -11,6 +11,7 @@ import 'leaderboard_screen.dart';
 import 'whiteboard_screen.dart';
 import 'subject_rooms_screen.dart';
 import 'qr_code_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,7 +19,6 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-// 🚀 إضافة WidgetsBindingObserver لمراقبة حالة التطبيق
 class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final List<Widget> _pages = [const HomeTab(), const SocialScreen(), const ChatListScreen()];
@@ -27,13 +27,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    AuthService.setOnlineStatus(true); // متصل عند فتح التطبيق
+    AuthService.setOnlineStatus(true);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    AuthService.setOnlineStatus(false); // غير متصل عند إغلاق التطبيق
+    AuthService.setOnlineStatus(false);
     super.dispose();
   }
 
@@ -98,11 +98,45 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 }
 
-// (باقي كود HomeTab و _buildToolCard يبقى كما هو، لقد اختصرته هنا لتوفير المساحة)
-class HomeTab extends StatelessWidget {
+// 🚀 شاشة الرئيسية المحدثة
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
   @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  String? _userName;
+  final TextEditingController _joinController = TextEditingController();
+  final String _dailyQuote = "النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.";
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  void _loadUserData() async {
+    String? name = await AuthService.getUserName();
+    setState(() {
+      _userName = name ?? 'طالب';
+      _isLoading = false;
+    });
+  }
+
+  void _joinRoom(String roomId) {
+    if (roomId.trim().isEmpty) return;
+    String name = _userName ?? 'مستخدم';
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ConferenceScreen(conferenceID: roomId.trim(), userName: name)
+    ));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -117,9 +151,50 @@ class HomeTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('أهلاً بك', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-            const Text('جاهز لتحطيم أهدافك اليوم؟', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
+            // اسم الطالب وساعات الدراسة
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).snapshots(),
+              builder: (context, snapshot) {
+                int studyTime = 0;
+                if (snapshot.hasData && snapshot.data!.data() != null) {
+                  studyTime = (snapshot.data!.data() as Map<String, dynamic>)['studyTime'] ?? 0;
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('أهلاً بك، $_userName', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.timer, size: 14, color: AppTheme.primaryColor),
+                        const SizedBox(width: 4),
+                        Text('إجمالي الدراسة: $studyTime دقيقة', style: const TextStyle(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // 💡 بطاقة مقولة اليوم
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [AppTheme.secondaryColor.withOpacity(0.2), AppTheme.primaryColor.withOpacity(0.1)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lightbulb_outline, color: AppTheme.secondaryColor, size: 30),
+                  const SizedBox(width: 16),
+                  Expanded(child: Text(_dailyQuote, style: const TextStyle(color: Colors.white, fontSize: 14, fontStyle: FontStyle.italic, height: 1.5))),
+                ],
+              ),
+            ),
             const SizedBox(height: 30),
+
             const Text('أدواتك الخارقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 16),
             GridView.count(
@@ -139,6 +214,35 @@ class HomeTab extends StatelessWidget {
                 _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
               ],
             ),
+            const SizedBox(height: 30),
+
+            // 🚀 الانضمام السريع بالكود
+            const Text('انضمام سريع بغرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _joinController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: 'أدخل كود الغرفة هنا...',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: _joinRoom,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, color: AppTheme.primaryColor),
+                    onPressed: () => _joinRoom(_joinController.text),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -149,7 +253,12 @@ class HomeTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: color.withOpacity(0.3)), boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)]),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: color.withOpacity(0.3)),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)],
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
