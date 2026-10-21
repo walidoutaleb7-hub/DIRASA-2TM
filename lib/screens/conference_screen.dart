@@ -72,6 +72,7 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
               ZegoMenuBarButtonName.toggleScreenSharingButton,
               ZegoMenuBarButtonName.toggleMicrophoneButton,
               ZegoMenuBarButtonName.switchCameraButton,
+              ZegoMenuBarButtonName.toggleCameraButton,
               ZegoMenuBarButtonName.leaveButton, // ✅ زر إنهاء المكالمة
             ],
           ),

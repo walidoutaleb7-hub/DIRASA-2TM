@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'subject_room_detail_screen.dart';
+import 'sub_rooms_list_screen.dart';
 
 class SubjectRoomsScreen extends StatelessWidget {
   const SubjectRoomsScreen({super.key});
@@ -27,12 +27,7 @@ class SubjectRoomsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('قاعات المواد الدراسية')),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.1,
-        ),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 1.1),
         itemCount: subjects.length,
         itemBuilder: (context, index) {
           var subject = subjects[index];
@@ -41,10 +36,7 @@ class SubjectRoomsScreen extends StatelessWidget {
           return GestureDetector(
             onTap: () {
               Navigator.push(context, MaterialPageRoute(
-                builder: (_) => SubjectRoomDetailScreen(
-                  subjectName: subject['name'] as String,
-                  roomId: subject['id'] as String,
-                )
+                builder: (_) => SubRoomsListScreen(subjectName: subject['name'] as String, subjectId: subject['id'] as String)
               ));
             },
             child: Container(
@@ -59,11 +51,7 @@ class SubjectRoomsScreen extends StatelessWidget {
                 children: [
                   Icon(subject['icon'] as IconData, size: 40, color: color),
                   const SizedBox(height: 12),
-                  Text(
-                    subject['name'] as String,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(subject['name'] as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center),
                 ],
               ),
             ),
