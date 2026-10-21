@@ -26,7 +26,6 @@ class SocialScreen extends StatelessWidget {
                 return const Center(child: Text('لا يوجد زملاء مسجلين بعد.', style: TextStyle(color: Colors.grey)));
               }
 
-              // تصفية القائمة لإخفاء حسابك أنت
               var users = snapshot.data!.docs.where((doc) => doc.id != currentId).toList();
 
               if (users.isEmpty) {
@@ -40,32 +39,46 @@ class SocialScreen extends StatelessWidget {
                   var user = users[index].data() as Map<String, dynamic>;
                   String name = user['name'] ?? 'مستخدم';
                   String status = user['status'] ?? 'متاح';
+                  bool isOnline = user['isOnline'] ?? false; // 🟢 قراءة حالة الاتصال
                   
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      leading: CircleAvatar(
-                        backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                        child: Text(name[0], style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                      leading: Stack(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                            child: Text(name[0], style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                          ),
+                          // 🟢 النقطة الخضراء
+                          if (isOnline)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.greenAccent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppTheme.cardColor, width: 2),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: Text(status, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      subtitle: Text(isOnline ? 'متصل الآن' : status, style: TextStyle(color: isOnline ? Colors.greenAccent : Colors.grey, fontSize: 12)),
                       trailing: IconButton(
                         icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.primaryColor),
                         onPressed: () {
-                          // إنشاء معرف محادثة فريد وثابت بين المستخدمين
                           String chatId = currentId.compareTo(users[index].id) < 0 
                               ? '${currentId}_${users[index].id}' 
                               : '${users[index].id}_$currentId';
-                              
                           Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => ChatRoomScreen(
-                              chatId: chatId, 
-                              receiverName: name, 
-                              receiverId: users[index].id
-                            )
+                            builder: (_) => ChatRoomScreen(chatId: chatId, receiverName: name, receiverId: users[index].id)
                           ));
                         },
                       ),

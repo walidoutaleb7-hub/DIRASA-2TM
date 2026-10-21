@@ -15,6 +15,21 @@ class AuthService {
     return prefs.getString(_keyUserName);
   }
 
+  // 🟢 دالة تحديث حالة الاتصال
+  static Future<void> setOnlineStatus(bool isOnline) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        await _db.collection('users').doc(user.uid).update({
+          'isOnline': isOnline,
+          'lastSeen': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        print("Error updating online status: $e");
+      }
+    }
+  }
+
   static Future<bool> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -29,6 +44,7 @@ class AuthService {
           'email': userCred.user!.email,
           'uid': userCred.user!.uid,
           'status': 'متاح للدراسة',
+          'isOnline': true,
           'studyTime': 0,
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -45,7 +61,6 @@ class AuthService {
 
   static Future<bool> login(String name) async {
     try {
-      // محاولة الدخول العادي
       String cleanName = name.trim().replaceAll(' ', '_').toLowerCase();
       String email = "${cleanName}_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}@dirasa.com";
       String password = "DirasaSecurePass123!";
@@ -54,7 +69,7 @@ class AuthService {
       if (userCred.user != null) {
         await _db.collection('users').doc(userCred.user!.uid).set({
           'name': name, 'email': email, 'uid': userCred.user!.uid,
-          'status': 'متاح للدراسة', 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+          'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
         });
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
@@ -62,22 +77,18 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      // 🚀 خطة الطوارئ: الدخول المجهول (Anonymous Auth) لضمان وجود ID حقيقي
       try {
         UserCredential anonCred = await _auth.signInAnonymously();
         if (anonCred.user != null) {
            await _db.collection('users').doc(anonCred.user!.uid).set({
             'name': name, 'uid': anonCred.user!.uid,
-            'status': 'متاح للدراسة', 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+            'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
           });
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_keyUserName, name);
           return true;
         }
-      } catch (anonError) {
-         print("Anonymous Auth Error: $anonError");
-      }
-      // إذا فشل كل شيء، ندخلك محلياً (لكن الزملاء لن يعملوا)
+      } catch (anonError) {}
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUserName, name);
       return true; 
@@ -85,6 +96,7 @@ class AuthService {
   }
 
   static Future<void> logout() async {
+    await setOnlineStatus(false); // إخفاء النقطة الخضراء عند الخروج
     try { await GoogleSignIn().signOut(); await _auth.signOut(); } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserName);

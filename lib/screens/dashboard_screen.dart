@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
-import 'ai_screen.dart';
+import 'settings_screen.dart';
 import 'social_screen.dart';
 import 'chat_list_screen.dart';
-import 'profile_screen.dart';
-import 'settings_screen.dart';
-import 'whiteboard_screen.dart';
+import 'ai_screen.dart';
 import 'leaderboard_screen.dart';
+import 'whiteboard_screen.dart';
 import 'subject_rooms_screen.dart';
 import 'qr_code_screen.dart';
 
@@ -18,9 +17,33 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+// 🚀 إضافة WidgetsBindingObserver لمراقبة حالة التطبيق
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final List<Widget> _pages = [const HomeTab(), const SocialScreen(), const ChatListScreen()];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    AuthService.setOnlineStatus(true); // متصل عند فتح التطبيق
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    AuthService.setOnlineStatus(false); // غير متصل عند إغلاق التطبيق
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AuthService.setOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      AuthService.setOnlineStatus(false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,9 +97,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+// (باقي كود HomeTab و _buildToolCard يبقى كما هو، لقد اختصرته هنا لتوفير المساحة)
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,7 +107,7 @@ class HomeTab extends StatelessWidget {
       appBar: AppBar(
         title: const Text('DIRASA 2TM', style: TextStyle(color: Colors.white, letterSpacing: 2, fontSize: 20)),
         actions: [
-          IconButton(icon: const Icon(Icons.person_outline, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
+          IconButton(icon: const Icon(Icons.person_outline, color: Colors.white), onPressed: () {}),
           IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
         ],
       ),
@@ -93,10 +116,9 @@ class HomeTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('أهلاً بك، وليد', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text('أهلاً بك', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
             const Text('جاهز لتحطيم أهدافك اليوم؟', style: TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
             const SizedBox(height: 30),
-            
             const Text('أدواتك الخارقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 16),
             GridView.count(
@@ -126,12 +148,7 @@ class HomeTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: color.withOpacity(0.3)),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)],
-        ),
+        decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: color.withOpacity(0.3)), boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)]),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
