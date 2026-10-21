@@ -36,10 +36,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     FocusScope.of(context).unfocus();
 
     await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).collection('messages').add({
-      'senderId': currentId,
-      'senderName': widget.userName,
-      'text': text,
-      'time': FieldValue.serverTimestamp(),
+      'senderId': currentId, 'senderName': widget.userName, 'text': text, 'time': FieldValue.serverTimestamp(),
     });
   }
 
@@ -47,11 +44,30 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     bool newLock = !_isLocked;
     await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).update({'isLocked': newLock});
     setState(() => _isLocked = newLock);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(newLock ? 'تم قفل الدردشة' : 'تم فتح الدردشة')));
   }
 
   void _deleteMessage(String msgId) async {
     await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).collection('messages').doc(msgId).delete();
+  }
+
+  void _deleteRoom() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        title: const Text('حذف الروم', style: TextStyle(color: Colors.white)),
+        content: const Text('هل أنت متأكد؟ سيتم حذف الروم وجميع رسائله نهائياً.', style: TextStyle(color: Colors.grey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).delete();
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   @override
@@ -61,29 +77,18 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.roomName),
-            if (_isLocked) const Text('مغلق بواسطة الأدمن', style: TextStyle(fontSize: 10, color: Colors.red)),
-          ],
-        ),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.roomName),
+          if (_isLocked) const Text('مغلق', style: TextStyle(fontSize: 10, color: Colors.red)),
+        ]),
         actions: [
-          // 🎥 زر بدء مكالمة الفيديو
-          IconButton(
-            icon: const Icon(Icons.video_camera_front, color: Colors.greenAccent),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ConferenceScreen(conferenceID: widget.roomId, userName: widget.userName)
-              ));
-            },
-          ),
-          // 🔒 زر قفل الروم (للأدمن فقط)
-          if (isAdmin)
-            IconButton(
-              icon: Icon(_isLocked ? Icons.lock : Icons.lock_open, color: _isLocked ? Colors.red : Colors.amber),
-              onPressed: _toggleLock,
-            ),
+          IconButton(icon: const Icon(Icons.video_camera_front, color: Colors.greenAccent), onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: widget.roomId, userName: widget.userName)));
+          }),
+          if (isAdmin) ...[
+            IconButton(icon: Icon(_isLocked ? Icons.lock : Icons.lock_open, color: _isLocked ? Colors.red : Colors.amber), onPressed: _toggleLock),
+            IconButton(icon: const Icon(Icons.delete_forever, color: Colors.redAccent), onPressed: _deleteRoom),
+          ],
         ],
       ),
       body: Column(
@@ -124,10 +129,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                               children: [
                                 Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10)),
                                 if (isAdmin && !isMe)
-                                  GestureDetector(
-                                    onTap: () => _deleteMessage(msgDoc.id),
-                                    child: const Icon(Icons.delete, color: Colors.red, size: 16),
-                                  ),
+                                  GestureDetector(onTap: () => _deleteMessage(msgDoc.id), child: const Icon(Icons.delete, color: Colors.red, size: 16)),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -149,13 +151,12 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    enabled: !_isLocked, // تعطيل الإرسال إذا كان الروم مقفلاً
+                    enabled: !_isLocked,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: _isLocked ? 'الروم مغلق من قبل الأدمن...' : 'اكتب رسالة...',
+                      hintText: _isLocked ? 'الروم مغلق...' : 'اكتب رسالة...',
                       hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: AppTheme.bgColor,
+                      filled: true, fillColor: AppTheme.bgColor,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
