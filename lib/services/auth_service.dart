@@ -15,88 +15,95 @@ class AuthService {
     return prefs.getString(_keyUserName);
   }
 
-  // 🟢 دالة تحديث حالة الاتصال
   static Future<void> setOnlineStatus(bool isOnline) async {
     final user = _auth.currentUser;
     if (user != null) {
-      try {
-        await _db.collection('users').doc(user.uid).update({
-          'isOnline': isOnline,
-          'lastSeen': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        print("Error updating online status: $e");
-      }
+      try { await _db.collection('users').doc(user.uid).update({'isOnline': isOnline, 'lastSeen': FieldValue.serverTimestamp()}); } catch (_) {}
     }
   }
 
-  static Future<bool> signInWithGoogle() async {
+  static Future<String?> signUp(String fName, String lName, String email, String password) async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return false;
+      UserCredential userCred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+      if (userCred.user != null) {
+        String fullName = "$fName $lName";
+        await _db.collection('users').doc(userCred.user!.uid).set({
+          'name': fullName, 'firstName': fName, 'lastName': lName, 'email': email.trim(), 'uid': userCred.user!.uid,
+          'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+        });
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyUserName, fullName);
+        return null; 
+      }
+      return "حدث خطأ غير معروف";
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') return "هذا البريد مسجل بالفعل.";
+      if (e.code == 'weak-password') return "كلمة المرور ضعيفة جداً (6 أحرف على الأقل).";
+      if (e.code == 'invalid-email') return "صيغة البريد الإلكتروني غير صحيحة.";
+      return e.message;
+    } catch (e) { return e.toString(); }
+  }
+
+  static Future<String?> signIn(String email, String password) async {
+    try {
+      UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+      if (userCred.user != null) {
+        DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get();
+        String name = (doc.data() as Map<String, dynamic>?)?['name'] ?? 'مستخدم';
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyUserName, name);
+        return null; 
+      }
+      return "حدث خطأ";
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') return "لا يوجد حساب بهذا البريد.";
+      if (e.code == 'wrong-password') return "كلمة المرور غير صحيحة.";
+      return e.message;
+    } catch (e) { return e.toString(); }
+  }
+
+  static Future<String?> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return null; 
+    } catch (e) { return "تأكد من صحة البريد الإلكتروني."; }
+  }
+
+  static Future<String?> signInWithGoogle() async {
+    try {
+      // ⚠️ يجب وضع Web Client ID هنا من Firebase لكي تعمل المكتبة الجديدة
+      // اذهب إلى Firebase -> Authentication -> Google -> Web SDK Configuration
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com',
+      );
+      
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return "تم الإلغاء";
+      
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
       UserCredential userCred = await _auth.signInWithCredential(credential);
 
       if (userCred.user != null) {
+        String fullName = userCred.user!.displayName ?? 'مستخدم جوجل';
         await _db.collection('users').doc(userCred.user!.uid).set({
-          'name': userCred.user!.displayName ?? 'مستخدم جوجل',
-          'email': userCred.user!.email,
-          'uid': userCred.user!.uid,
-          'status': 'متاح للدراسة',
-          'isOnline': true,
-          'studyTime': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_keyUserName, userCred.user!.displayName ?? 'مستخدم');
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print("Google Sign-In Error: $e");
-      return false;
-    }
-  }
-
-  static Future<bool> login(String name) async {
-    try {
-      String cleanName = name.trim().replaceAll(' ', '_').toLowerCase();
-      String email = "${cleanName}_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}@dirasa.com";
-      String password = "DirasaSecurePass123!";
-      UserCredential userCred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-
-      if (userCred.user != null) {
-        await _db.collection('users').doc(userCred.user!.uid).set({
-          'name': name, 'email': email, 'uid': userCred.user!.uid,
+          'name': fullName, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
           'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
+        
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_keyUserName, name);
-        return true;
+        await prefs.setString(_keyUserName, fullName);
+        return null; 
       }
-      return false;
+      return "فشل الدخول";
     } catch (e) {
-      try {
-        UserCredential anonCred = await _auth.signInAnonymously();
-        if (anonCred.user != null) {
-           await _db.collection('users').doc(anonCred.user!.uid).set({
-            'name': name, 'uid': anonCred.user!.uid,
-            'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
-          });
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(_keyUserName, name);
-          return true;
-        }
-      } catch (anonError) {}
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyUserName, name);
-      return true; 
+      print("Google Error: $e");
+      return "فشل الدخول بجوجل. تأكد من إضافة SHA-1 و Web Client ID.";
     }
   }
 
   static Future<void> logout() async {
-    await setOnlineStatus(false); // إخفاء النقطة الخضراء عند الخروج
+    await setOnlineStatus(false);
     try { await GoogleSignIn().signOut(); await _auth.signOut(); } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserName);
