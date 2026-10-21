@@ -42,16 +42,20 @@ class _SubRoomsListScreenState extends State<SubRoomsListScreen> {
               if (nameController.text.trim().isEmpty) return;
               Navigator.pop(context);
               
-              String roomId = DateTime.now().millisecondsSinceEpoch.toString();
-              await FirebaseFirestore.instance.collection('study_rooms').doc(roomId).set({
-                'roomId': roomId,
-                'subject': widget.subjectId,
-                'name': nameController.text.trim(),
-                'adminId': currentId,
-                'adminName': _userName,
-                'isLocked': false,
-                'createdAt': FieldValue.serverTimestamp(),
-              });
+              try {
+                String roomId = DateTime.now().millisecondsSinceEpoch.toString();
+                await FirebaseFirestore.instance.collection('study_rooms').doc(roomId).set({
+                  'roomId': roomId,
+                  'subject': widget.subjectId,
+                  'name': nameController.text.trim(),
+                  'adminId': currentId,
+                  'adminName': _userName,
+                  'isLocked': false,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e')));
+              }
             },
             child: const Text('إنشاء'),
           ),
@@ -71,12 +75,28 @@ class _SubRoomsListScreenState extends State<SubRoomsListScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('study_rooms').where('subject', isEqualTo: widget.subjectId).orderBy('createdAt', descending: true).snapshots(),
+        // 🚀 إزالة الترتيب من Firebase لتجنب خطأ الفهرس
+        stream: FirebaseFirestore.instance.collection('study_rooms').where('subject', isEqualTo: widget.subjectId).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لا توجد رومات حالياً. أنشئ رومك الأول!', style: TextStyle(color: Colors.grey)));
+          
+          if (snapshot.hasError) {
+            return Center(child: Text('خطأ في جلب البيانات: ${snapshot.error}', style: const TextStyle(color: Colors.red), textAlign: TextAlign.center));
+          }
+          
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('لا توجد رومات حالياً. أنشئ رومك الأول!', style: TextStyle(color: Colors.grey)));
+          }
 
-          var rooms = snapshot.data!.docs;
+          var rooms = snapshot.data!.docs.toList();
+          
+          // 🚀 ترتيب الرومات داخل التطبيق (الأحدث أولاً)
+          rooms.sort((a, b) {
+            var t1 = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            var t2 = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            if (t1 == null || t2 == null) return 0;
+            return t2.compareTo(t1);
+          });
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
