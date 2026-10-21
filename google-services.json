@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "745868828443-87u00q5mr5rorla189kue2a6tkjkuahd.apps.googleusercontent.com",
+          "client_id": "745868828443-l273hc55m9hu51gos5hdkpn15b1b946l.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.video_meet_app",
-            "certificate_hash": "9203c7ab4542746178934f51f5b4e3a4795ba2f7"
+            "certificate_hash": "42fb98371fa9dc47987384d07d1b61c8073aadce"
           }
         },
         {
