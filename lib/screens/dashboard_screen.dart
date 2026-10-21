@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
@@ -98,7 +99,6 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 }
 
-// 🚀 شاشة الرئيسية المحدثة
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
   @override
@@ -110,6 +110,11 @@ class _HomeTabState extends State<HomeTab> {
   final TextEditingController _joinController = TextEditingController();
   final String _dailyQuote = "النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.";
   bool _isLoading = true;
+
+  // 🚀 متغيرات المؤقت
+  int _seconds = 1500;
+  bool _isTimerRunning = false;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -125,12 +130,47 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
+  // 🚀 دالة تشغيل وإيقاف المؤقت
+  void _toggleTimer() {
+    if (_isTimerRunning) {
+      _timer?.cancel();
+      setState(() => _isTimerRunning = false);
+      
+      // حفظ الوقت في قاعدة البيانات عند الإيقاف
+      int studiedMinutes = (1500 - _seconds) ~/ 60;
+      if (studiedMinutes > 0) {
+        AuthService.updateUserData(_userName!, 'متاح للدراسة', null); // تحديث الحالة (اختياري)
+        FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).update({
+          'studyTime': FieldValue.increment(studiedMinutes)
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedMinutes دقيقة دراسة!')));
+      }
+      setState(() => _seconds = 1500); // إعادة الضبط
+    } else {
+      setState(() => _isTimerRunning = true);
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_seconds > 0) {
+          setState(() => _seconds--);
+        } else {
+          timer.cancel();
+          setState(() => _isTimerRunning = false);
+        }
+      });
+    }
+  }
+
   void _joinRoom(String roomId) {
     if (roomId.trim().isEmpty) return;
     String name = _userName ?? 'مستخدم';
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => ConferenceScreen(conferenceID: roomId.trim(), userName: name)
     ));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -151,7 +191,7 @@ class _HomeTabState extends State<HomeTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // اسم الطالب وساعات الدراسة
+            // الاسم والإحصائيات
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).snapshots(),
               builder: (context, snapshot) {
@@ -177,7 +217,44 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 20),
 
-            // 💡 بطاقة مقولة اليوم
+            // 🚀 بطاقة المؤقت
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.1), blurRadius: 20)],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('مؤقت التركيز', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                      const SizedBox(height: 8),
+                      Text('${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: _toggleTimer,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _isTimerRunning ? Colors.red : AppTheme.primaryColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: (_isTimerRunning ? Colors.red : AppTheme.primaryColor).withOpacity(0.4), blurRadius: 15)],
+                      ),
+                      child: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 32),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // مقولة اليوم
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -211,12 +288,11 @@ class _HomeTabState extends State<HomeTab> {
                 }),
                 _buildToolCard(Icons.draw_rounded, 'السبورة', Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
                 _buildToolCard(Icons.emoji_events_rounded, 'المتصدرين', Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
-                _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, PageRouteBuilder(pageBuilder: (_, __, ___) => const SubjectRoomsScreen(), transitionDuration: const Duration(milliseconds: 200), transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child)))),
+                _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
               ],
             ),
             const SizedBox(height: 30),
 
-            // 🚀 الانضمام السريع بالكود
             const Text('انضمام سريع بغرفة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 12),
             Container(
