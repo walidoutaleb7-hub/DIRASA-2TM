@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
@@ -21,6 +25,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final String? currentId = AuthService.currentUserId;
   late bool _isLocked;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -28,22 +33,53 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     _isLocked = widget.isLocked;
   }
 
-  void _sendMessage() async {
+  void _sendMessage({String? text, String? fileUrl, String type = 'text', String? fileName}) async {
     if (_isLocked) return;
-    String text = _controller.text.trim();
-    if (text.isEmpty || currentId == null) return;
-    _controller.clear();
+    String msgText = text ?? _controller.text.trim();
+    if (msgText.isEmpty && fileUrl == null) return;
+    if (fileUrl == null) _controller.clear();
+    
     FocusScope.of(context).unfocus();
 
     await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).collection('messages').add({
-      'senderId': currentId, 'senderName': widget.userName, 'text': text, 'time': FieldValue.serverTimestamp(),
+      'senderId': currentId,
+      'senderName': widget.userName,
+      'text': msgText,
+      'type': type,
+      'fileUrl': fileUrl,
+      'fileName': fileName,
+      'time': FieldValue.serverTimestamp(),
     });
   }
 
-  void _toggleLock() async {
-    bool newLock = !_isLocked;
-    await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).update({'isLocked': newLock});
-    setState(() => _isLocked = newLock);
+  void _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+
+    if (result != null) {
+      setState(() => _isUploading = true);
+      File file = File(result.files.single.path!);
+      String fileName = result.files.single.name;
+      String ext = fileName.split('.').last.toLowerCase();
+      
+      try {
+        String storagePath = 'rooms/${widget.roomId}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        TaskSnapshot snapshot = await FirebaseStorage.instance.ref(storagePath).putFile(file);
+        String url = await snapshot.ref.getDownloadURL();
+        
+        if (ext == 'pdf') {
+          _sendMessage(text: 'ملف PDF: $fileName', fileUrl: url, type: 'file', fileName: fileName);
+        } else {
+          _sendMessage(text: 'صورة', fileUrl: url, type: 'image');
+        }
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الرفع: $e')));
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
+    }
   }
 
   void _deleteMessage(String msgId) async {
@@ -86,7 +122,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
             Navigator.push(context, MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: widget.roomId, userName: widget.userName)));
           }),
           if (isAdmin) ...[
-            IconButton(icon: Icon(_isLocked ? Icons.lock : Icons.lock_open, color: _isLocked ? Colors.red : Colors.amber), onPressed: _toggleLock),
+            IconButton(icon: Icon(_isLocked ? Icons.lock : Icons.lock_open, color: _isLocked ? Colors.red : Colors.amber), onPressed: () async {
+              bool newLock = !_isLocked;
+              await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).update({'isLocked': newLock});
+              setState(() => _isLocked = newLock);
+            }),
             IconButton(icon: const Icon(Icons.delete_forever, color: Colors.redAccent), onPressed: _deleteRoom),
           ],
         ],
@@ -102,24 +142,21 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 if (messages.isEmpty) return const Center(child: Text('لا توجد رسائل بعد.', style: TextStyle(color: Colors.grey)));
 
                 return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
+                  reverse: true, padding: const EdgeInsets.all(16), itemCount: messages.length,
                   itemBuilder: (context, index) {
                     var msgDoc = messages[index];
                     var msg = msgDoc.data() as Map<String, dynamic>;
                     bool isMe = msg['senderId'] == currentId;
+                    String type = msg['type'] ?? 'text';
 
                     return Align(
                       alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(12),
                         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                         decoration: BoxDecoration(
                           color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10),
+                          borderRadius: BorderRadius.circular(16), border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,8 +169,26 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                   GestureDetector(onTap: () => _deleteMessage(msgDoc.id), child: const Icon(Icons.delete, color: Colors.red, size: 16)),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(msg['text'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                            const SizedBox(height: 6),
+                            if (type == 'image')
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(msg['fileUrl'], width: 200, fit: BoxFit.cover),
+                              )
+                            else if (type == 'file')
+                              InkWell(
+                                onTap: () => launchUrl(Uri.parse(msg['fileUrl'])),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                                    const SizedBox(width: 8),
+                                    Text(msg['fileName'] ?? 'ملف', style: const TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline)),
+                                  ],
+                                ),
+                              )
+                            else
+                              Text(msg['text'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
                           ],
                         ),
                       ),
@@ -143,21 +198,19 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               },
             ),
           ),
+          if (_isUploading) const LinearProgressIndicator(color: AppTheme.primaryColor),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             color: AppTheme.cardColor,
             child: Row(
               children: [
+                IconButton(icon: const Icon(Icons.attach_file, color: Colors.grey), onPressed: _isLocked ? null : _pickFile),
                 Expanded(
                   child: TextField(
-                    controller: _controller,
-                    enabled: !_isLocked,
-                    style: const TextStyle(color: Colors.white),
+                    controller: _controller, enabled: !_isLocked, style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: _isLocked ? 'الروم مغلق...' : 'اكتب رسالة...',
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true, fillColor: AppTheme.bgColor,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                      hintText: _isLocked ? 'الروم مغلق...' : 'اكتب رسالة...', hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
                     onSubmitted: (_) => _sendMessage(),
@@ -166,7 +219,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 const SizedBox(width: 8),
                 CircleAvatar(
                   backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor,
-                  child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : _sendMessage),
+                  child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage()),
                 ),
               ],
             ),
