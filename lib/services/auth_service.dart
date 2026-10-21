@@ -105,9 +105,11 @@ class AuthService {
   }
 
   static Future<void> logout() async {
-    await setOnlineStatus(false);
-    try { await GoogleSignIn().signOut(); await _auth.signOut(); } catch (_) {}
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyUserName);
+    try { await _auth.signOut(); } catch (e) { print("Firebase SignOut Error: $e"); }
+    try { await GoogleSignIn().signOut(); } catch (e) { print("Google SignOut Error: $e"); }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyUserName);
+    } catch (e) { print("Prefs Error: $e"); }
   }
 }

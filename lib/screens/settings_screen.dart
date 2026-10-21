@@ -129,11 +129,11 @@ class SettingsScreen extends StatelessWidget {
                     foregroundColor: Colors.red,
                   ),
                   onPressed: () async {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("جاري تسجيل الخروج..."), duration: Duration(seconds: 1)));
                     await AuthService.logout();
                     if (context.mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
                         (route) => false,
                       );
                     }
