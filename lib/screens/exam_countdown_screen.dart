@@ -38,6 +38,10 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال اسم المادة أولاً')));
       return;
     }
+    
+    // إخفاء الكيبورد قبل فتح التاريخ
+    FocusScope.of(context).unfocus();
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 7)),
@@ -72,7 +76,9 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
   int get _daysRemaining {
     if (_examDate == null) return 0;
     final now = DateTime.now();
-    final difference = _examDate!.difference(DateTime(now.year, now.month, now.day));
+    final today = DateTime(now.year, now.month, now.day);
+    final examDay = DateTime(_examDate!.year, _examDate!.month, _examDate!.day);
+    final difference = examDay.difference(today);
     return difference.inDays;
   }
 
@@ -81,7 +87,8 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('عداد الامتحانات')),
-      body: Padding(
+      // 🚀 الحل السحري: جعل الشاشة قابلة للتمرير
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -109,9 +116,10 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
               const SizedBox(height: 8),
               Text(_examSubject, style: const TextStyle(color: AppTheme.primaryColor, fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
+              // 🚀 الدائرة المتوهجة
               Container(
-                width: 200,
-                height: 200,
+                width: 220,
+                height: 220,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: AppTheme.primaryColor, width: 8),
@@ -121,18 +129,20 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('$_daysRemaining', style: const TextStyle(color: Colors.white, fontSize: 72, fontWeight: FontWeight.bold)),
+                      Text('$_daysRemaining', style: const TextStyle(color: Colors.white, fontSize: 80, fontWeight: FontWeight.bold)),
                       const Text('يوم متبقي', style: TextStyle(color: Colors.grey, fontSize: 16)),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Text(DateFormat('EEEE, d MMMM yyyy', 'ar').format(_examDate!), style: const TextStyle(color: Colors.white70, fontSize: 16)),
-            ] else ...[
-              const Icon(Icons.calendar_today, size: 80, color: Colors.grey),
+              Text(DateFormat('EEEE, d MMMM yyyy', 'ar').format(_examDate!), style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              const Text('لم يتم تحديد أي امتحان بعد', style: TextStyle(color: Colors.grey)),
+            ] else ...[
+              const SizedBox(height: 40),
+              const Icon(Icons.calendar_today, size: 100, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text('لم يتم تحديد أي امتحان بعد', style: TextStyle(color: Colors.grey, fontSize: 16)),
             ]
           ],
         ),
