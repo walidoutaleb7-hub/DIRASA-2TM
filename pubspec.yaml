@@ -23,7 +23,7 @@ dependencies:
   google_generative_ai: ^0.4.7
   image_picker: ^1.0.7
   google_fonts: ^6.1.0
-  file_picker: ^8.0.0
+  file_picker: ^13.1.0
   url_launcher: ^6.2.5
   permission_handler: ^13.0.2
   youtube_player_iframe: ^4.0.4
