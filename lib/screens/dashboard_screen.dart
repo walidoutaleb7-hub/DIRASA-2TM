@@ -13,7 +13,9 @@ import 'whiteboard_screen.dart';
 import 'subject_rooms_screen.dart';
 import 'qr_code_screen.dart';
 import 'profile_screen.dart';
-import 'gpa_calculator_screen.dart'; // 🚀 استدعاء حاسبة المعدل
+import 'gpa_calculator_screen.dart';
+import 'formula_sheet_screen.dart';
+import 'exam_countdown_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -317,6 +319,8 @@ class _HomeTabState extends State<HomeTab> {
                 _buildToolCard(Icons.emoji_events_rounded, 'المتصدرين', Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
                 _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
                 _buildToolCard(Icons.calculate_rounded, 'حاسبة المعدل', Colors.pinkAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GpaCalculatorScreen()))),
+                _buildToolCard(Icons.menu_book_rounded, 'مذكرة القوانين', Colors.lightBlueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FormulaSheetScreen()))),
+                _buildToolCard(Icons.calendar_month_rounded, 'عداد الامتحانات', Colors.deepOrangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExamCountdownScreen()))),
               ],
             ),
             const SizedBox(height: 30),
