@@ -51,6 +51,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // 🚀 دالة موحدة لعرض الوقت بشكل دقيق
+  String _formatStudyTime(int totalSeconds) {
+    if (totalSeconds < 60) {
+      return '$totalSeconds ثانية';
+    }
+    int minutes = totalSeconds ~/ 60;
+    if (minutes < 60) {
+      return '$minutes دقيقة';
+    }
+    int hours = minutes ~/ 60;
+    int remainingMinutes = minutes % 60;
+    return '$hours ساعة و $remainingMinutes دقيقة';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildStatCard('دقائق الدراسة', '$studyTime', Colors.amber),
+                          _buildStatCard('وقت الدراسة', _formatStudyTime(studyTime), Colors.amber),
                           _buildStatCard('تاريخ الانضمام', joinDate, Colors.blueAccent),
                         ],
                       ),
@@ -151,7 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       width: 140, padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.3))),
-      child: Column(children: [Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]),
+      child: Column(children: [Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]),
     );
   }
 }

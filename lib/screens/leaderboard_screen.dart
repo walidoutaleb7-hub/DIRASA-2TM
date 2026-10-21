@@ -5,13 +5,26 @@ import '../theme/app_theme.dart';
 class LeaderboardScreen extends StatelessWidget {
   const LeaderboardScreen({super.key});
 
+  // 🚀 دالة موحدة لعرض الوقت بشكل دقيق
+  String _formatStudyTime(int totalSeconds) {
+    if (totalSeconds < 60) {
+      return '$totalSeconds ثانية';
+    }
+    int minutes = totalSeconds ~/ 60;
+    if (minutes < 60) {
+      return '$minutes دقيقة';
+    }
+    int hours = minutes ~/ 60;
+    int remainingMinutes = minutes % 60;
+    return '$hours ساعة و $remainingMinutes دقيقة';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('متصدرو الدراسة')),
       body: StreamBuilder<QuerySnapshot>(
-        // 🚀 قراءة المستخدمين الحقيقيين من قاعدة البيانات وترتيبهم حسب وقت الدراسة
         stream: FirebaseFirestore.instance
             .collection('users')
             .orderBy('studyTime', descending: true)
@@ -38,10 +51,7 @@ class LeaderboardScreen extends StatelessWidget {
               String name = user['name'] ?? 'طالب';
               int studyTime = user['studyTime'] ?? 0;
               
-              // تحويل الدقائق إلى ساعات ودقائق
-              String timeStr = studyTime >= 60 
-                  ? '${studyTime ~/ 60} ساعة و ${studyTime % 60} دقيقة' 
-                  : '$studyTime دقيقة';
+              String timeStr = _formatStudyTime(studyTime);
 
               Color color = index == 0 
                   ? Colors.amber 
