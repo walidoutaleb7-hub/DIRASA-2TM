@@ -35,16 +35,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
     
-    String? base64Image = _pickedImage != null ? base64Encode(_pickedImage!) : null;
-    await AuthService.updateUserData(_nameController.text.trim(), _statusController.text.trim(), base64Image);
-    
-    if (mounted) {
-      setState(() {
-        _isEditing = false;
-        _isLoading = false;
-        _pickedImage = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات بنجاح!')));
+    try {
+      String? base64Image = _pickedImage != null ? base64Encode(_pickedImage!) : null;
+      await AuthService.updateUserData(_nameController.text.trim(), _statusController.text.trim(), base64Image);
+      
+      if (mounted) {
+        setState(() { _isEditing = false; _isLoading = false; _pickedImage = null; });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات بنجاح!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: ${e.toString()}')));
+      }
     }
   }
 
@@ -65,9 +68,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 int studyTime = user['studyTime'] ?? 0;
                 String status = user['status'] ?? 'متاح للدراسة';
                 
-                // إصلاح تاريخ الانضمام
                 Timestamp? joined = user['createdAt'];
-                String joinDate = joined != null ? DateFormat('yyyy/MM/dd').format(joined.toDate()) : 'غير معروف';
+                String joinDate = joined != null ? DateFormat('yyyy/MM/dd').format(joined.toDate()) : 'عضو جديد';
                 
                 String? base64Str = user['profileImage'];
                 Uint8List? imageBytes;
@@ -119,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Expanded(child: ElevatedButton(onPressed: () => setState(() => _isEditing = false), style: ElevatedButton.styleFrom(backgroundColor: Colors.grey), child: const Text('إلغاء'))),
                             const SizedBox(width: 12),
-                            Expanded(child: ElevatedButton(onPressed: _isLoading ? null : _saveProfile, child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('حفظ التغييرات'))),
+                            Expanded(child: ElevatedButton(onPressed: _isLoading ? null : _saveProfile, child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('حفظ التغييرات'))),
                           ],
                         )
                       ] else ...[

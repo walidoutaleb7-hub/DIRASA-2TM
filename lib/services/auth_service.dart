@@ -23,14 +23,12 @@ class AuthService {
     }
   }
 
-  // 🚀 دالة تحديث الاسم والحالة والصورة
   static Future<void> updateUserData(String name, String status, String? base64Image) async {
     final user = _auth.currentUser;
     if (user != null) {
       Map<String, dynamic> data = {'name': name, 'status': status};
       if (base64Image != null) data['profileImage'] = base64Image;
       await _db.collection('users').doc(user.uid).update(data);
-      
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUserName, name);
     }
@@ -61,10 +59,17 @@ class AuthService {
       UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
       if (userCred.user != null) {
         String name = userCred.user!.email?.split('@')[0] ?? 'مستخدم';
-        try {
-          DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get();
-          if (doc.exists) name = (doc.data() as Map<String, dynamic>)['name'] ?? name;
-        } catch (_) {}
+        DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get();
+        
+        if (doc.exists) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          name = data['name'] ?? name;
+          // 🚀 إصلاح تاريخ الانضمام للحسابات القديمة
+          if (data['createdAt'] == null) {
+            await _db.collection('users').doc(userCred.user!.uid).update({'createdAt': FieldValue.serverTimestamp()});
+          }
+        }
+        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
         return null; 
@@ -89,21 +94,27 @@ class AuthService {
       final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: '745868828443-v5mvqkeue2rqadpsibqbq1lnjdkh59iv.apps.googleusercontent.com');
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return "تم الإلغاء";
+      
       final GoogleSignInAuthentication auth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken, idToken: auth.idToken);
       UserCredential userCred = await _auth.signInWithCredential(credential);
+      
       if (userCred.user != null) {
         String fullName = userCred.user!.displayName ?? 'مستخدم جوجل';
         await _db.collection('users').doc(userCred.user!.uid).set({
           'name': fullName, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
           'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
+        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, fullName);
         return null; 
       }
       return "فشل";
-    } catch (e) { return "فشل الدخول بجوجل."; }
+    } catch (e) { 
+      // 🚀 إظهار الخطأ الحقيقي
+      return "فشل جوجل: ${e.toString().substring(0, (e.toString().length > 50 ? 50 : e.toString().length))}"; 
+    }
   }
 
   static Future<void> logout() async {
