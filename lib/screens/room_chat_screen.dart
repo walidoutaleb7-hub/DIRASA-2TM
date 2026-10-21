@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'conference_screen.dart';
@@ -34,6 +37,9 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
 
+  // 🚀 RegExp لاكتشاف الروابط
+  final RegExp _urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
+
   @override
   void initState() { super.initState(); _isLocked = widget.isLocked; }
 
@@ -49,7 +55,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     Map<String, dynamic> msgData = {
       'senderId': currentId, 'senderName': widget.userName, 'text': msgText,
       'type': type, 'imageBase64': base64Img, 'audioUrl': audioUrl, 
-      'reactions': {}, 'time': FieldValue.serverTimestamp(),
+      'reactions': {}, 'isEdited': false, 'time': FieldValue.serverTimestamp(),
     };
 
     if (_replyToMessage != null) {
@@ -143,10 +149,42 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     }
   }
 
+  void _editMessage(String msgId, String oldText) {
+    TextEditingController editCtrl = TextEditingController(text: oldText);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        title: const Text('تعديل الرسالة', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: editCtrl,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(filled: true, fillColor: AppTheme.bgColor),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () async {
+              if (editCtrl.text.trim().isNotEmpty) {
+                await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).collection('messages').doc(msgId).update({
+                  'text': editCtrl.text.trim(),
+                  'isEdited': true,
+                });
+              }
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showMessageOptions(DocumentSnapshot msgDoc) {
     var msg = msgDoc.data() as Map<String, dynamic>;
     bool isMe = msg['senderId'] == currentId;
     bool isAdmin = currentId == widget.adminId;
+    String type = msg['type'] ?? 'text';
 
     showModalBottomSheet(
       context: context,
@@ -158,7 +196,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // التفاعلات السريعة
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: ['❤️', '👍', '😂', '🔥', '😮'].map((emoji) {
@@ -174,7 +211,23 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 title: const Text('رد', style: TextStyle(color: Colors.white)),
                 onTap: () { Navigator.pop(context); setState(() => _replyToMessage = msg); },
               ),
-              if (msg['type'] == 'image')
+              if (type == 'text')
+                ListTile(
+                  leading: const Icon(Icons.copy, color: Colors.white),
+                  title: const Text('نسخ النص', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Clipboard.setData(ClipboardData(text: msg['text'] ?? ''));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ النص')));
+                  },
+                ),
+              if (isMe && type == 'text')
+                ListTile(
+                  leading: const Icon(Icons.edit, color: Colors.blueAccent),
+                  title: const Text('تعديل الرسالة', style: TextStyle(color: Colors.blueAccent)),
+                  onTap: () { Navigator.pop(context); _editMessage(msgDoc.id, msg['text']); },
+                ),
+              if (type == 'image')
                 ListTile(
                   leading: const Icon(Icons.download, color: Colors.greenAccent),
                   title: const Text('حفظ الصورة', style: TextStyle(color: Colors.greenAccent)),
@@ -196,6 +249,43 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTextWithLinks(String text, bool isMe, bool isEdited) {
+    final List<TextSpan> spans = [];
+    final matches = _urlRegExp.allMatches(text);
+    int lastMatchEnd = 0;
+
+    for (final match in matches) {
+      if (match.start > lastMatchEnd) {
+        spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(TextSpan(
+        text: url,
+        style: const TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline),
+        recognizer: TapGestureRecognizer()..onTap = () async {
+          final Uri uri = Uri.parse(url);
+          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن فتح الرابط')));
+          }
+        },
+      ));
+      lastMatchEnd = match.end;
+    }
+    if (lastMatchEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastMatchEnd)));
+    }
+    if (isEdited) {
+      spans.add(const TextSpan(text: ' (معدلة)', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: TextStyle(color: isMe ? Colors.white : Colors.white, fontSize: 16),
+        children: spans,
+      ),
     );
   }
 
@@ -236,15 +326,15 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     String? img = msg['imageBase64'];
                     String? audio = msg['audioUrl'];
                     Map<String, dynamic> reactions = msg['reactions'] ?? {};
+                    bool isEdited = msg['isEdited'] ?? false;
 
                     return GestureDetector(
-                      onDoubleTap: () => _addReaction(msgDoc.id, '❤️'), // دبل تاب للقلب
-                      onLongPress: () => _showMessageOptions(msgDoc), // ضغط مطول للخيارات
+                      onDoubleTap: () => _addReaction(msgDoc.id, '❤️'),
+                      onLongPress: () => _showMessageOptions(msgDoc),
                       child: Align(
                         alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 12), 
-                          // 🚀 الصور بدون فقاعة، النصوص بفقاعة
                           padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                           decoration: type == 'image' ? null : BoxDecoration(
@@ -283,7 +373,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                Text(msg['text'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
                               ],
                               if (reactions.isNotEmpty)
                                 Padding(
