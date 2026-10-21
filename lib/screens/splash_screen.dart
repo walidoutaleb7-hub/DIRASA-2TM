@@ -18,6 +18,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _textFade;
   late Animation<double> _glowOpacity;
 
+  String? _savedUserName; // لجلب البيانات أثناء الأنميشن
+
   @override
   void initState() {
     super.initState();
@@ -32,22 +34,40 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _glowOpacity = Tween<double>(begin: 0.3, end: 0.8).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
 
     _controller.forward();
-    _navigateToNext();
+    
+    // 🚀 جلب البيانات مبكراً (أثناء عمل الأنميشن) لمنع التقطيع
+    _preloadData();
+  }
+
+  void _preloadData() async {
+    _savedUserName = await AuthService.getUserName();
   }
 
   void _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 4)); // انتظار 4 ثوانٍ لعرض الأنميشن
+    await Future.delayed(const Duration(milliseconds: 3500)); // انتظار 3.5 ثوانٍ
     if (!mounted) return;
 
-    String? name = await AuthService.getUserName();
-    Widget nextScreen = name == null ? const LoginScreen() : const DashboardScreen();
+    // إذا لم تكن البيانات وصلت بعد، ننتظرها
+    if (_savedUserName == null) {
+      _savedUserName = await AuthService.getUserName();
+    }
 
+    Widget nextScreen = _savedUserName == null ? const LoginScreen() : const DashboardScreen();
+
+    // 🚀 انتقال سينمائي سلس (Fade + Scale)
     Navigator.pushReplacement(context, PageRouteBuilder(
       pageBuilder: (_, __, ___) => nextScreen,
+      transitionDuration: const Duration(milliseconds: 1000), // مدة أطول لانتقال ناعم
       transitionsBuilder: (_, animation, __, child) {
-        return FadeTransition(opacity: animation, child: child);
+        final curvedAnimation = CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic);
+        return FadeTransition(
+          opacity: curvedAnimation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnimation),
+            child: child,
+          ),
+        );
       },
-      transitionDuration: const Duration(milliseconds: 800),
     ));
   }
 
@@ -60,6 +80,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    // تشغيل الانتقال
+    WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToNext());
+
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       body: Stack(
