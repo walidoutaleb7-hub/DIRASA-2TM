@@ -23,14 +23,22 @@ class AuthService {
     }
   }
 
+  // 🚀 الحل الجذري: استخدام set بدلاً من update لتجنب التعليق
   static Future<void> updateUserData(String name, String status, String? base64Image) async {
     final user = _auth.currentUser;
-    if (user != null) {
+    if (user == null) return;
+    
+    try {
       Map<String, dynamic> data = {'name': name, 'status': status};
       if (base64Image != null) data['profileImage'] = base64Image;
-      await _db.collection('users').doc(user.uid).update(data);
+      
+      await _db.collection('users').doc(user.uid).set(data, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 10));
+          
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUserName, name);
+    } catch (e) {
+      throw Exception("فشل الحفظ: تأكد من الاتصال بالإنترنت");
     }
   }
 
@@ -56,43 +64,25 @@ class AuthService {
 
   static Future<String?> signIn(String email, String password) async {
     try {
-      // 🚀 إضافة مهلة زمنية 20 ثانية لمنع التحميل اللانهائي
       UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password)
-          .timeout(const Duration(seconds: 20), onTimeout: () {
-            throw TimeoutException("انتهت مهلة الاتصال. تحقق من الإنترنت.");
-          });
+          .timeout(const Duration(seconds: 15), onTimeout: () => throw TimeoutException("انتهت المهلة"));
 
       if (userCred.user != null) {
         String name = userCred.user!.email?.split('@')[0] ?? 'مستخدم';
         try {
-          DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get()
-              .timeout(const Duration(seconds: 10)); // مهلة لجلب البيانات
-          if (doc.exists) {
-            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-            name = data['name'] ?? name;
-            if (data['createdAt'] == null) {
-              await _db.collection('users').doc(userCred.user!.uid).update({'createdAt': FieldValue.serverTimestamp()});
-            }
-          }
-        } catch (firestoreError) {
-          print("Firestore error during signIn (non-fatal): $firestoreError");
-        }
-        
+          DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get().timeout(const Duration(seconds: 5));
+          if (doc.exists) name = (doc.data() as Map<String, dynamic>)['name'] ?? name;
+        } catch (_) {}
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
         return null; 
       }
       return "فشل الدخول";
-    } on TimeoutException catch (e) {
-      return e.message; // رسالة المهلة الزمنية
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') return "لا يوجد حساب بهذا البريد.";
       if (e.code == 'wrong-password') return "كلمة المرور غير صحيحة.";
-      if (e.code == 'network-request-failed') return "فشل الاتصال بالشبكة. تأكد من الإنترنت.";
       return e.message;
-    } catch (e) { 
-      return "خطأ غير متوقع: ${e.toString()}";
-    }
+    } catch (e) { return "خطأ في الاتصال."; }
   }
 
   static Future<String?> resetPassword(String email) async {
@@ -107,7 +97,6 @@ class AuthService {
       final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: '745868828443-v5mvqkeue2rqadpsibqbq1lnjdkh59iv.apps.googleusercontent.com');
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return "تم الإلغاء";
-      
       final GoogleSignInAuthentication auth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken, idToken: auth.idToken);
       UserCredential userCred = await _auth.signInWithCredential(credential);
@@ -118,15 +107,12 @@ class AuthService {
           'name': fullName, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
           'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, fullName);
         return null; 
       }
       return "فشل";
-    } catch (e) { 
-      return "فشل جوجل: ${e.toString().substring(0, (e.toString().length > 70 ? 70 : e.toString().length))}"; 
-    }
+    } catch (e) { return "فشل جوجل."; }
   }
 
   static Future<void> logout() async {
