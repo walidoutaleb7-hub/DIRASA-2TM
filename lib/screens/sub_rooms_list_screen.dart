@@ -71,25 +71,53 @@ class _SubRoomsListScreenState extends State<SubRoomsListScreen> {
     );
   }
 
+  // 🚀 دالة حذف الروم
+  Future<void> _deleteRoom(String roomId, String roomName) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        title: const Text('حذف الروم', style: TextStyle(color: Colors.white)),
+        content: Text('هل أنت متأكد من حذف روم "$roomName" وجميع رسائله؟', style: TextStyle(color: Colors.grey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      try {
+        // حذف الرسائل أولاً
+        var msgs = await FirebaseFirestore.instance.collection('study_rooms').doc(roomId).collection('messages').get();
+        for (var m in msgs.docs) {
+          await m.reference.delete();
+        }
+        // ثم حذف الروم
+        await FirebaseFirestore.instance.collection('study_rooms').doc(roomId).delete();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الروم بنجاح')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e')));
+      }
+    }
+  }
+
   void _enterRoom(Map<String, dynamic> room) async {
     bool isLocked = room['isLocked'] ?? false;
     bool isAdmin = room['adminId'] == currentId;
     String password = room['password'] ?? '';
     List<dynamic> bannedUsers = room['bannedUsers'] ?? [];
 
-    // 🚀 منع الدخول إذا كان الروم مغلقاً
     if (isLocked && !isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عذراً، هذا الروم مغلق حالياً من قبل المشرف.')));
       return;
     }
 
-    // 🚀 منع الدخول إذا كان محظوراً
     if (bannedUsers.contains(currentId)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حظرك من دخول هذا الروم.')));
       return;
     }
 
-    // 🚀 التحقق من كلمة المرور
     if (password.isNotEmpty && !isAdmin) {
       TextEditingController passInput = TextEditingController();
       bool? correct = await showDialog(
@@ -116,7 +144,7 @@ class _SubRoomsListScreenState extends State<SubRoomsListScreen> {
     if (mounted) {
       Navigator.push(context, MaterialPageRoute(
         builder: (_) => RoomChatScreen(
-          roomId: room['roomId'], roomName: room['name'], adminId: room['adminId'], isLocked: isLocked, userName: _userName ?? 'طالب',
+          roomId: room['roomId'], roomName: room['name'], adminId: room['adminId'] ?? '', isLocked: isLocked, userName: _userName ?? 'طالب',
         )
       ));
     }
@@ -149,6 +177,8 @@ class _SubRoomsListScreenState extends State<SubRoomsListScreen> {
               var room = rooms[index].data() as Map<String, dynamic>;
               bool isLocked = room['isLocked'] ?? false;
               bool isAdmin = room['adminId'] == currentId;
+              // 🚀 السماح بالحذف إذا كان أدمن، أو إذا كان الروم قديماً (بدون أدمن)
+              bool canDelete = isAdmin || room['adminId'] == null || room['adminId'] == '';
               bool isProtected = (room['password'] ?? '').isNotEmpty;
 
               return Container(
@@ -158,8 +188,14 @@ class _SubRoomsListScreenState extends State<SubRoomsListScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: CircleAvatar(backgroundColor: isLocked ? Colors.red.withOpacity(0.2) : Colors.green.withOpacity(0.2), child: Icon(isLocked ? Icons.lock : Icons.meeting_room, color: isLocked ? Colors.red : Colors.greenAccent)),
                   title: Row(children: [Text(room['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), if (isProtected) ...[const SizedBox(width: 8), const Icon(Icons.password, color: Colors.orange, size: 16)]]),
-                  subtitle: Text('الأدمن: ${room['adminName']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  trailing: isAdmin ? const Icon(Icons.admin_panel_settings, color: Colors.amber) : null,
+                  subtitle: Text('الأدمن: ${room['adminName'] ?? 'غير محدد'}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  // 🚀 زر الحذف
+                  trailing: canDelete 
+                      ? IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          onPressed: () => _deleteRoom(room['roomId'], room['name']),
+                        )
+                      : (isAdmin ? const Icon(Icons.admin_panel_settings, color: Colors.amber) : null),
                   onTap: () => _enterRoom(room),
                 ),
               );
