@@ -138,6 +138,7 @@ class _FormulaListTab extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Math.tex(
+                    textDirection: TextDirection.ltr,
                     item['latex']!,
                     mathStyle: MathStyle.display,
                     textStyle: const TextStyle(fontSize: 22, color: Colors.white),
