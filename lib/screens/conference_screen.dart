@@ -28,10 +28,7 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
   Future<void> _initializeCall() async {
     var status = await [Permission.camera, Permission.microphone].request();
     if (!status[Permission.camera]!.isGranted || !status[Permission.microphone]!.isGranted) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'يجب السماح بالوصول للكاميرا والمايك.';
-      });
+      setState(() { _isLoading = false; _errorMessage = 'يجب السماح بالوصول للكاميرا والمايك.'; });
       return;
     }
 
@@ -39,16 +36,12 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
       final response = await http.get(Uri.parse('https://dirasa-2tm.onrender.com/api/zego-credentials'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _appID = data['appID'];
-          _appSign = data['appSign'];
-          _isLoading = false;
-        });
+        setState(() { _appID = data['appID']; _appSign = data['appSign']; _isLoading = false; });
       } else {
-        setState(() { _isLoading = false; _errorMessage = 'فشل في جلب المفاتيح من الخادم.'; });
+        setState(() { _isLoading = false; _errorMessage = 'فشل جلب المفاتيح من الخادم.'; });
       }
     } catch (e) {
-      setState(() { _isLoading = false; _errorMessage = 'حدث خطأ في الاتصال بالشبكة.'; });
+      setState(() { _isLoading = false; _errorMessage = 'خطأ في الاتصال بالشبكة.'; });
     }
   }
 
@@ -68,12 +61,12 @@ class _ConferenceScreenState extends State<ConferenceScreen> {
           video: ZegoUIKitVideoConfig.preset1080P(),
           bottomMenuBarConfig: ZegoBottomMenuBarConfig(
             buttons: [
-              ZegoMenuBarButtonName.chatButton,
+              ZegoMenuBarButtonName.chatButton, // 💬 تم إرجاع الشات
               ZegoMenuBarButtonName.toggleScreenSharingButton,
               ZegoMenuBarButtonName.toggleMicrophoneButton,
-              ZegoMenuBarButtonName.switchCameraButton,
               ZegoMenuBarButtonName.toggleCameraButton,
-              ZegoMenuBarButtonName.leaveButton, // ✅ زر إنهاء المكالمة
+              ZegoMenuBarButtonName.switchCameraButton,
+              ZegoMenuBarButtonName.leaveButton, // 🚀 تم إضافة زر إنهاء المكالمة
             ],
           ),
         ),
