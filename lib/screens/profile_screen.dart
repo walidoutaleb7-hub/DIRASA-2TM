@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -12,17 +15,34 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final String? currentId = AuthService.currentUserId;
-  final TextEditingController _statusController = TextEditingController();
   bool _isEditing = false;
+  bool _isUploading = false;
+  
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _statusController = TextEditingController();
+  Uint8List? _pickedImage;
 
-  void _updateStatus(String oldStatus) async {
-    if (_statusController.text.trim().isEmpty || _statusController.text == oldStatus) {
-      setState(() => _isEditing = false);
-      return;
+  void _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 20, maxWidth: 300);
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      setState(() => _pickedImage = bytes);
     }
-    await FirebaseFirestore.instance.collection('users').doc(currentId).update({'status': _statusController.text.trim()});
-    setState(() => _isEditing = false);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث الحالة!')));
+  }
+
+  void _saveProfile(String oldName, String oldStatus) async {
+    setState(() => _isUploading = true);
+    String newName = _nameController.text.trim().isEmpty ? oldName : _nameController.text.trim();
+    String newStatus = _statusController.text.trim().isEmpty ? oldStatus : _statusController.text.trim();
+    String? base64Image = _pickedImage != null ? base64Encode(_pickedImage!) : null;
+
+    await AuthService.updateUserData(newName, newStatus, base64Image);
+    
+    if (mounted) {
+      setState(() { _isEditing = false; _isUploading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ بنجاح!')));
+    }
   }
 
   @override
@@ -43,58 +63,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 String status = user['status'] ?? 'متاح للدراسة';
                 Timestamp? joined = user['createdAt'];
                 String joinDate = joined != null ? DateFormat('yyyy/MM/dd').format(joined.toDate()) : 'غير معروف';
+                String? base64Str = user['profileImage'];
+
+                Uint8List? imageBytes;
+                if (_pickedImage != null) {
+                  imageBytes = _pickedImage;
+                } else if (base64Str != null && base64Str.isNotEmpty) {
+                  imageBytes = base64Decode(base64Str);
+                }
+
+                if (!_isEditing) {
+                  _nameController.text = name;
+                  _statusController.text = status;
+                }
 
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      // الصورة الرمزية
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                        child: Text(name[0], style: const TextStyle(fontSize: 50, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                      GestureDetector(
+                        onTap: _isEditing ? _pickImage : null,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 60,
+                              backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                              backgroundImage: imageBytes != null ? MemoryImage(imageBytes) : null,
+                              child: imageBytes == null ? Text(name[0], style: const TextStyle(fontSize: 50, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)) : null,
+                            ),
+                            if (_isEditing) Positioned(bottom: 0, right: 0, child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: AppTheme.primaryColor, shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 20))),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 8),
                       
-                      // الحالة (قابلة للتعديل)
-                      if (_isEditing)
+                      if (_isEditing) ...[
+                        TextField(
+                          controller: _nameController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'الاسم', filled: true, fillColor: AppTheme.cardColor),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _statusController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'الحالة', filled: true, fillColor: AppTheme.cardColor),
+                        ),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _statusController,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: const InputDecoration(filled: true, fillColor: AppTheme.cardColor, hintText: 'حالتك الآن...'),
-                              ),
-                            ),
-                            IconButton(icon: const Icon(Icons.check, color: Colors.green), onPressed: () => _updateStatus(status)),
+                            Expanded(child: ElevatedButton(onPressed: () => setState(() => _isEditing = false), style: ElevatedButton.styleFrom(backgroundColor: Colors.grey), child: const Text('إلغاء'))),
+                            const SizedBox(width: 12),
+                            Expanded(child: ElevatedButton(onPressed: _isUploading ? null : () => _saveProfile(name, status), child: _isUploading ? const CircularProgressIndicator(color: Colors.white) : const Text('حفظ التغييرات'))),
                           ],
                         )
-                      else
-                        GestureDetector(
-                          onTap: () {
-                            _statusController.text = status;
-                            setState(() => _isEditing = true);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(status, style: const TextStyle(color: Colors.grey)),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.edit, color: AppTheme.primaryColor, size: 14),
-                              ],
-                            ),
-                          ),
-                        ),
-                      
+                      ] else ...[
+                        Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 8),
+                        Text(status, style: const TextStyle(color: Colors.grey)),
+                        TextButton.icon(onPressed: () => setState(() => _isEditing = true), icon: const Icon(Icons.edit, size: 16), label: const Text('تعديل الملف الشخصي')),
+                      ],
+
                       const SizedBox(height: 32),
-                      
-                      // إحصائيات
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -112,16 +142,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildStatCard(String title, String value, Color color) {
     return Container(
-      width: 140,
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      width: 140, padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.3))),
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        ],
-      ),
+      child: Column(children: [Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12))]),
     );
   }
 }

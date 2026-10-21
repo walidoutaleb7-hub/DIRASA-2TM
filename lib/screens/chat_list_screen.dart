@@ -20,7 +20,7 @@ class ChatListScreen extends StatelessWidget {
     final currentId = AuthService.currentUserId;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.bgColor,
       appBar: AppBar(
         title: const Text('المحادثات'),
         actions: [

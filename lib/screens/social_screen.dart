@@ -12,7 +12,7 @@ class SocialScreen extends StatelessWidget {
     final currentId = AuthService.currentUserId;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('زملاء القسم')),
       body: currentId == null 
         ? const Center(child: Text('يرجى تسجيل الدخول أولاً', style: TextStyle(color: Colors.white)))
