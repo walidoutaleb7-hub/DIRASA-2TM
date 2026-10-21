@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class AuthService {
   static const String _keyUserName = 'userName';
@@ -22,6 +23,16 @@ class AuthService {
     }
   }
 
+  static Future<DocumentSnapshot> _getUserWithRetry(String uid) async {
+    try {
+      return await _db.collection('users').doc(uid).get(const GetOptions(source: Source.server));
+    } catch (e) {
+      print("Firestore Fetch Error, retrying... $e");
+      await Future.delayed(const Duration(seconds: 2));
+      return await _db.collection('users').doc(uid).get(const GetOptions(source: Source.server));
+    }
+  }
+
   static Future<String?> signUp(String fName, String lName, String email, String password) async {
     try {
       UserCredential userCred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
@@ -39,7 +50,6 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') return "هذا البريد مسجل بالفعل.";
       if (e.code == 'weak-password') return "كلمة المرور ضعيفة جداً (6 أحرف على الأقل).";
-      if (e.code == 'invalid-email') return "صيغة البريد الإلكتروني غير صحيحة.";
       return e.message;
     } catch (e) { return e.toString(); }
   }
@@ -48,7 +58,7 @@ class AuthService {
     try {
       UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
       if (userCred.user != null) {
-        DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get();
+        DocumentSnapshot doc = await _getUserWithRetry(userCred.user!.uid);
         String name = (doc.data() as Map<String, dynamic>?)?['name'] ?? 'مستخدم';
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
@@ -59,7 +69,9 @@ class AuthService {
       if (e.code == 'user-not-found') return "لا يوجد حساب بهذا البريد.";
       if (e.code == 'wrong-password') return "كلمة المرور غير صحيحة.";
       return e.message;
-    } catch (e) { return e.toString(); }
+    } catch (e) { 
+      return "خطأ في الاتصال بالخادم. تأكد من الإنترنت.";
+    }
   }
 
   static Future<String?> resetPassword(String email) async {
@@ -71,15 +83,9 @@ class AuthService {
 
   static Future<String?> signInWithGoogle() async {
     try {
-      // ⚠️ يجب وضع Web Client ID هنا من Firebase لكي تعمل المكتبة الجديدة
-      // اذهب إلى Firebase -> Authentication -> Google -> Web SDK Configuration
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com',
-      );
-      
+      final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return "تم الإلغاء";
-      
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
       UserCredential userCred = await _auth.signInWithCredential(credential);
@@ -90,16 +96,12 @@ class AuthService {
           'name': fullName, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
           'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, fullName);
         return null; 
       }
       return "فشل الدخول";
-    } catch (e) {
-      print("Google Error: $e");
-      return "فشل الدخول بجوجل. تأكد من إضافة SHA-1 و Web Client ID.";
-    }
+    } catch (e) { return "فشل الدخول بجوجل. تأكد من إعدادات Firebase."; }
   }
 
   static Future<void> logout() async {

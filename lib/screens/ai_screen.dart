@@ -88,7 +88,7 @@ class _AIScreenState extends State<AIScreen> {
           'message': userText,
           'history': history,
         }),
-      ).timeout(const Duration(seconds: 60)); 
+      ).timeout(const Duration(seconds: 90)); // 🚀 زيادة الوقت إلى 90 ثانية
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -98,12 +98,19 @@ class _AIScreenState extends State<AIScreen> {
           _messages.add({'role': 'ai', 'text': data['reply'] ?? 'عذراً، لم أفهم.'});
         });
       } else {
+        print("Server Error: ${response.statusCode} - ${response.body}");
         setState(() {
           _isLoading = false;
           _messages.removeLast();
           _messages.add({'role': 'ai', 'text': 'حدث خطأ في الخادم.'});
         });
       }
+    } on TimeoutException {
+      setState(() {
+        _isLoading = false;
+        _messages.removeLast();
+        _messages.add({'role': 'ai', 'text': 'استغرق الخادم وقتاً طويلاً للرد. يرجى المحاولة مرة أخرى (الخادم يستيقظ).'});
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -131,10 +138,7 @@ class _AIScreenState extends State<AIScreen> {
       appBar: AppBar(
         title: const Text('DIRASA AI'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _clearHistory,
-          )
+          IconButton(icon: const Icon(Icons.delete_outline), onPressed: _clearHistory)
         ],
       ),
       body: Column(
@@ -173,9 +177,8 @@ class _AIScreenState extends State<AIScreen> {
                           H1Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 22, fontWeight: FontWeight.bold)),
                           H2Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
                           H3Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
-                          CodeConfig(style: TextStyle(color: Colors.amberAccent, backgroundColor: Colors.black45, fontFamily: 'monospace')),
+                          CodeConfig(style: const TextStyle(color: Colors.amberAccent, backgroundColor: Colors.black45, fontFamily: 'monospace')),
                           LinkConfig(style: TextStyle(color: AppTheme.primaryColor, decoration: TextDecoration.underline)),
-                          // ✅ تم إصلاح دالة النقاط لتقبل 3 معاملات
                           ListConfig(marker: (isTight, index, listType) => Text('•', style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18))),
                         ],
                       ),
@@ -185,17 +188,10 @@ class _AIScreenState extends State<AIScreen> {
               },
             ),
           ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
-            ),
+          if (_isLoading) const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: AppTheme.primaryColor)),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.bgColor,
-              border: Border(top: BorderSide(color: Colors.grey.shade800)),
-            ),
+            decoration: BoxDecoration(color: AppTheme.bgColor, border: Border(top: BorderSide(color: Colors.grey.shade800))),
             child: Row(
               children: [
                 Expanded(
@@ -218,10 +214,7 @@ class _AIScreenState extends State<AIScreen> {
                 CircleAvatar(
                   radius: 24, 
                   backgroundColor: _isLoading ? Colors.grey : AppTheme.primaryColor,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20), 
-                    onPressed: _isLoading ? null : _askAI
-                  ),
+                  child: IconButton(icon: const Icon(Icons.send, color: Colors.white, size: 20), onPressed: _isLoading ? null : _askAI),
                 )
               ],
             ),
