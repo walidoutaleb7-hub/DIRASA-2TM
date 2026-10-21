@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
-import 'profile_screen.dart'; // ربط شاشة الملف الشخصي
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -72,14 +72,19 @@ class SettingsScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                // 1. الملف الشخصي
+                // 1. الملف الشخصي (الآن يعمل بشكل صحيح)
                 _buildSettingTile(
                   Icons.person_outline, 'الملف الشخصي', 'إدارة معلومات حسابك',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 
-                // 2. دليل الاستخدام (ميزة جديدة ومفيدة جداً)
+                // 2. دليل الاستخدام
                 _buildSettingTile(
                   Icons.menu_book, 'دليل الاستخدام', 'كيف تستخدم التطبيق؟',
                   onTap: () => _showGuide(context),
@@ -128,7 +133,7 @@ class SettingsScreen extends StatelessWidget {
                     if (context.mounted) {
                       Navigator.pushAndRemoveUntil(
                         context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
                         (route) => false,
                       );
                     }
