@@ -111,7 +111,6 @@ class _HomeTabState extends State<HomeTab> {
   final String _dailyQuote = "النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.";
   bool _isLoading = true;
 
-  // 🚀 متغيرات المؤقت
   int _seconds = 1500;
   bool _isTimerRunning = false;
   Timer? _timer;
@@ -130,22 +129,11 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
-  // 🚀 دالة تشغيل وإيقاف المؤقت
+  // 🚀 زر التشغيل / الإيقاف المؤقت
   void _toggleTimer() {
     if (_isTimerRunning) {
       _timer?.cancel();
       setState(() => _isTimerRunning = false);
-      
-      // حفظ الوقت في قاعدة البيانات عند الإيقاف
-      int studiedMinutes = (1500 - _seconds) ~/ 60;
-      if (studiedMinutes > 0) {
-        AuthService.updateUserData(_userName!, 'متاح للدراسة', null); // تحديث الحالة (اختياري)
-        FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).update({
-          'studyTime': FieldValue.increment(studiedMinutes)
-        });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedMinutes دقيقة دراسة!')));
-      }
-      setState(() => _seconds = 1500); // إعادة الضبط
     } else {
       setState(() => _isTimerRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -154,8 +142,38 @@ class _HomeTabState extends State<HomeTab> {
         } else {
           timer.cancel();
           setState(() => _isTimerRunning = false);
+          _saveStudyTime(); // حفظ عند اكتمال 25 دقيقة تلقائياً
+          setState(() => _seconds = 1500);
         }
       });
+    }
+  }
+
+  // 🚀 زر الإيقاف النهائي (Stop)
+  void _resetTimer() async {
+    _timer?.cancel();
+    setState(() => _isTimerRunning = false);
+    await _saveStudyTime();
+    setState(() => _seconds = 1500);
+  }
+
+  Future<void> _saveStudyTime() async {
+    int studiedSeconds = 1500 - _seconds;
+    int studiedMinutes = studiedSeconds ~/ 60;
+    
+    if (studiedMinutes > 0) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).update({
+          'studyTime': FieldValue.increment(studiedMinutes)
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedMinutes دقيقة دراسة!')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الحفظ: $e')));
+        }
+      }
     }
   }
 
@@ -237,17 +255,36 @@ class _HomeTabState extends State<HomeTab> {
                       Text('${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: _toggleTimer,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _isTimerRunning ? Colors.red : AppTheme.primaryColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: (_isTimerRunning ? Colors.red : AppTheme.primaryColor).withOpacity(0.4), blurRadius: 15)],
+                  Row(
+                    children: [
+                      // 🚀 زر الإيقاف الأحمر
+                      GestureDetector(
+                        onTap: _resetTimer,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: Colors.redAccent.withOpacity(0.4), blurRadius: 10)],
+                          ),
+                          child: const Icon(Icons.stop, color: Colors.white, size: 28),
+                        ),
                       ),
-                      child: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 32),
-                    ),
+                      const SizedBox(width: 12),
+                      // 🚀 زر التشغيل / الإيقاف المؤقت
+                      GestureDetector(
+                        onTap: _toggleTimer,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _isTimerRunning ? Colors.orange : AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: (_isTimerRunning ? Colors.orange : AppTheme.primaryColor).withOpacity(0.4), blurRadius: 15)],
+                          ),
+                          child: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 32),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
