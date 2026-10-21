@@ -84,11 +84,8 @@ class _AIScreenState extends State<AIScreen> {
       final response = await http.post(
         Uri.parse(_backendUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'message': userText,
-          'history': history,
-        }),
-      ).timeout(const Duration(seconds: 90)); // 🚀 زيادة الوقت إلى 90 ثانية
+        body: jsonEncode({'message': userText, 'history': history}),
+      ).timeout(const Duration(seconds: 90)); 
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -98,24 +95,17 @@ class _AIScreenState extends State<AIScreen> {
           _messages.add({'role': 'ai', 'text': data['reply'] ?? 'عذراً، لم أفهم.'});
         });
       } else {
-        print("Server Error: ${response.statusCode} - ${response.body}");
         setState(() {
           _isLoading = false;
           _messages.removeLast();
           _messages.add({'role': 'ai', 'text': 'حدث خطأ في الخادم.'});
         });
       }
-    } on TimeoutException {
-      setState(() {
-        _isLoading = false;
-        _messages.removeLast();
-        _messages.add({'role': 'ai', 'text': 'استغرق الخادم وقتاً طويلاً للرد. يرجى المحاولة مرة أخرى (الخادم يستيقظ).'});
-      });
     } catch (e) {
       setState(() {
         _isLoading = false;
         _messages.removeLast();
-        _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة.'});
+        _messages.add({'role': 'ai', 'text': 'حدث خطأ في الشبكة. تأكد من الإنترنت.'});
       });
     }
     _saveHistory();
@@ -157,7 +147,7 @@ class _AIScreenState extends State<AIScreen> {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(16),
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
                     decoration: BoxDecoration(
                       color: isUser ? AppTheme.primaryColor : AppTheme.cardColor,
                       borderRadius: BorderRadius.only(
@@ -173,6 +163,7 @@ class _AIScreenState extends State<AIScreen> {
                       shrinkWrap: true,
                       config: MarkdownConfig(
                         configs: [
+                          LatexConfig(textStyle: TextStyle(color: isUser ? Colors.white : AppTheme.textPrimary)), // دعم المعادلات
                           PConfig(textStyle: TextStyle(fontSize: 16, height: 1.6, color: isUser ? Colors.white : AppTheme.textPrimary)),
                           H1Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 22, fontWeight: FontWeight.bold)),
                           H2Config(style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -180,6 +171,15 @@ class _AIScreenState extends State<AIScreen> {
                           CodeConfig(style: const TextStyle(color: Colors.amberAccent, backgroundColor: Colors.black45, fontFamily: 'monospace')),
                           LinkConfig(style: TextStyle(color: AppTheme.primaryColor, decoration: TextDecoration.underline)),
                           ListConfig(marker: (isTight, index, listType) => Text('•', style: TextStyle(color: isUser ? Colors.white : AppTheme.primaryColor, fontSize: 18))),
+                          TableConfig( // تنسيق الجداول بشكل أنيق
+                            headerDecoration: BoxDecoration(color: AppTheme.bgColor, borderRadius: BorderRadius.circular(8)),
+                            headerPadding: const EdgeInsets.all(12),
+                            bodyDecoration: BoxDecoration(color: Colors.black26),
+                            bodyPadding: const EdgeInsets.all(10),
+                            border: TableBorder.all(color: Colors.white24),
+                            headerTextStyle: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                            bodyTextStyle: TextStyle(color: isUser ? Colors.white : AppTheme.textPrimary),
+                          ),
                         ],
                       ),
                     ),
