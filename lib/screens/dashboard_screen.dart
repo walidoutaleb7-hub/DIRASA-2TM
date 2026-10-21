@@ -13,6 +13,7 @@ import 'whiteboard_screen.dart';
 import 'subject_rooms_screen.dart';
 import 'qr_code_screen.dart';
 import 'profile_screen.dart';
+import 'gpa_calculator_screen.dart'; // 🚀 استدعاء حاسبة المعدل
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -129,7 +130,6 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
-  // 🚀 زر التشغيل / الإيقاف المؤقت
   void _toggleTimer() {
     if (_isTimerRunning) {
       _timer?.cancel();
@@ -142,14 +142,13 @@ class _HomeTabState extends State<HomeTab> {
         } else {
           timer.cancel();
           setState(() => _isTimerRunning = false);
-          _saveStudyTime(); // حفظ عند اكتمال 25 دقيقة تلقائياً
+          _saveStudyTime(); 
           setState(() => _seconds = 1500);
         }
       });
     }
   }
 
-  // 🚀 زر الإيقاف النهائي (Stop)
   void _resetTimer() async {
     _timer?.cancel();
     setState(() => _isTimerRunning = false);
@@ -209,7 +208,6 @@ class _HomeTabState extends State<HomeTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // الاسم والإحصائيات
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).snapshots(),
               builder: (context, snapshot) {
@@ -235,7 +233,6 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 20),
 
-            // 🚀 بطاقة المؤقت
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -257,21 +254,15 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   Row(
                     children: [
-                      // 🚀 زر الإيقاف الأحمر
                       GestureDetector(
                         onTap: _resetTimer,
                         child: Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: Colors.redAccent.withOpacity(0.4), blurRadius: 10)],
-                          ),
+                          decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.redAccent.withOpacity(0.4), blurRadius: 10)]),
                           child: const Icon(Icons.stop, color: Colors.white, size: 28),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // 🚀 زر التشغيل / الإيقاف المؤقت
                       GestureDetector(
                         onTap: _toggleTimer,
                         child: Container(
@@ -291,7 +282,6 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 20),
 
-            // مقولة اليوم
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -326,6 +316,7 @@ class _HomeTabState extends State<HomeTab> {
                 _buildToolCard(Icons.draw_rounded, 'السبورة', Colors.greenAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhiteboardScreen()))),
                 _buildToolCard(Icons.emoji_events_rounded, 'المتصدرين', Colors.amber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
                 _buildToolCard(Icons.meeting_room_rounded, 'القاعات', Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubjectRoomsScreen()))),
+                _buildToolCard(Icons.calculate_rounded, 'حاسبة المعدل', Colors.pinkAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GpaCalculatorScreen()))),
               ],
             ),
             const SizedBox(height: 30),
