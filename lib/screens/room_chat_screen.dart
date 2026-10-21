@@ -37,7 +37,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
 
-  // 🚀 RegExp لاكتشاف الروابط
   final RegExp _urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
 
   @override
@@ -294,6 +293,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     bool isAdmin = currentId == widget.adminId;
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
+      resizeToAvoidBottomInset: true, // 🚀 إصلاح جلتش الكيبورد
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.roomName), 
@@ -333,60 +333,72 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                       onLongPress: () => _showMessageOptions(msgDoc),
                       child: Align(
                         alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 12), 
-                          padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                          decoration: type == 'image' ? null : BoxDecoration(
-                            color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor, 
-                            borderRadius: BorderRadius.circular(16), 
-                            border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10)
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (msg['replyTo'] != null)
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: isMe ? Colors.white70 : AppTheme.primaryColor, width: 3))),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(msg['replyTo']['senderName'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                                      Text(msg['replyTo']['text'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    ],
-                                  ),
-                                ),
-                              if (type == 'image' && img != null)
-                                GestureDetector(
-                                  onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
-                                  child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover)),
-                                )
-                              else if (type == 'audio' && audio != null)
-                                AudioPlayerWidget(base64Audio: audio)
-                              else ...[
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              margin: EdgeInsets.only(bottom: reactions.isNotEmpty ? 16 : 12), 
+                              padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
+                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                              decoration: type == 'image' ? null : BoxDecoration(
+                                color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor, 
+                                borderRadius: BorderRadius.circular(16), 
+                                border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10)
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (msg['replyTo'] != null)
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: isMe ? Colors.white70 : AppTheme.primaryColor, width: 3))),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(msg['replyTo']['senderName'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          Text(msg['replyTo']['text'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ),
+                                  if (type == 'image' && img != null)
+                                    GestureDetector(
+                                      onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
+                                      child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)), // 🚀 إصلاح تجمد الصورة
+                                    )
+                                  else if (type == 'audio' && audio != null)
+                                    AudioPlayerWidget(base64Audio: audio)
+                                  else ...[
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
                                   ],
-                                ),
-                                const SizedBox(height: 4),
-                                _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
-                              ],
-                              if (reactions.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Wrap(
-                                    spacing: 4,
+                                ],
+                              ),
+                            ),
+                            // 🚀 التفاعلات تظهر كشارة أسفل الرسالة
+                            if (reactions.isNotEmpty)
+                              Positioned(
+                                bottom: -8,
+                                right: isMe ? 16 : null,
+                                left: isMe ? null : 16,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white24)),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: reactions.entries.where((e) => (e.value as List).isNotEmpty).map((entry) {
-                                      return Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(10)), child: Text('${entry.key} ${(entry.value as List).length}', style: const TextStyle(fontSize: 10)));
+                                      return Text('${entry.key} ${(entry.value as List).length}', style: const TextStyle(fontSize: 12, color: Colors.white));
                                     }).toList(),
                                   ),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
                       ),
                     );
@@ -407,28 +419,38 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               ),
             ),
           if (_isUploading) const LinearProgressIndicator(color: AppTheme.primaryColor),
-          if (_isRecording) Container(padding: const EdgeInsets.all(8), color: Colors.red.withOpacity(0.2), child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.mic, color: Colors.red), SizedBox(width: 8), Text('جاري التسجيل...', style: TextStyle(color: Colors.red))])),
-          Container(
-            padding: const EdgeInsets.all(8), color: AppTheme.cardColor,
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.image, color: Colors.grey), onPressed: _isLocked ? null : _pickImage),
-                Expanded(
-                  child: TextField(
-                    controller: _controller, enabled: !_isLocked, style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(hintText: _isLocked ? 'الروم مغلق...' : 'اكتب رسالة...', hintStyle: const TextStyle(color: Colors.grey), filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 20)),
-                    onSubmitted: (val) => _sendMessage(text: val),
+          // 🚀 شريط الإدخال والمايك (نظام الضغط للبدء والإيقاف)
+          SafeArea(
+            child: Container(
+              padding: const EdgeInsets.all(8), color: AppTheme.cardColor,
+              child: Row(
+                children: [
+                  IconButton(icon: const Icon(Icons.image, color: Colors.grey), onPressed: _isLocked ? null : _pickImage),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller, enabled: !_isLocked && !_isRecording, style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: _isLocked ? 'الروم مغلق...' : (_isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...'), 
+                        hintStyle: TextStyle(color: _isRecording ? Colors.red : Colors.grey), 
+                        filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 20)
+                      ),
+                      onSubmitted: (val) => _sendMessage(text: val),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _controller.text.isEmpty 
-                    ? GestureDetector(
-                        onLongPressStart: (_) => _startRecording(),
-                        onLongPressEnd: (_) => _stopRecording(),
-                        child: CircleAvatar(radius: 24, backgroundColor: _isRecording ? Colors.red : (_isLocked ? Colors.grey : AppTheme.primaryColor), child: Icon(_isRecording ? Icons.stop : Icons.mic, color: Colors.white)),
-                      )
-                    : CircleAvatar(backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage())),
-              ],
+                  const SizedBox(width: 8),
+                  _controller.text.isEmpty && !_isRecording
+                      ? GestureDetector(
+                          onTap: _startRecording, // 🚀 ضغطة واحدة للبدء
+                          child: CircleAvatar(radius: 24, backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: const Icon(Icons.mic, color: Colors.white)),
+                        )
+                      : _isRecording
+                          ? GestureDetector(
+                              onTap: _stopRecording, // 🚀 ضغطة واحدة للإيقاف
+                              child: const CircleAvatar(radius: 24, backgroundColor: Colors.red, child: Icon(Icons.stop, color: Colors.white)),
+                            )
+                          : CircleAvatar(backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage())),
+                ],
+              ),
             ),
           ),
         ],
@@ -437,6 +459,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   }
 }
 
+// 🚀 مشغل صوت محسن مع شريط تقدم ومدة
 class AudioPlayerWidget extends StatefulWidget {
   final String base64Audio;
   const AudioPlayerWidget({super.key, required this.base64Audio});
@@ -447,40 +470,75 @@ class AudioPlayerWidget extends StatefulWidget {
 class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   late AudioPlayer _player;
   bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    
+    _player.durationStream.listen((d) { if (mounted && d != null) setState(() => _duration = d); });
+    _player.positionStream.listen((p) { if (mounted) setState(() => _position = p); });
     _player.playerStateStream.listen((state) { if (mounted) setState(() => _isPlaying = state.playing); });
+
+    _loadAudio();
+  }
+
+  Future<void> _loadAudio() async {
+    try {
+      final bytes = base64Decode(widget.base64Audio);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a');
+      await file.writeAsBytes(bytes);
+      await _player.setFilePath(file.path);
+    } catch (e) { print("Audio Load Error: $e"); }
   }
 
   @override
   void dispose() { _player.dispose(); super.dispose(); }
 
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    return "${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}";
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: Colors.white, size: 30),
-          onPressed: () async {
-            if (_isPlaying) { await _player.pause(); }
-            else {
-              if (_player.audioSource == null) {
-                final bytes = base64Decode(widget.base64Audio);
-                final dir = await getTemporaryDirectory();
-                final file = File('${dir.path}/temp_audio.m4a');
-                await file.writeAsBytes(bytes);
-                await _player.setFilePath(file.path);
-              }
-              await _player.play();
-            }
-          },
-        ),
-        const Icon(Icons.graphic_eq, color: Colors.white, size: 20),
-      ],
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: AppTheme.bgColor, borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: AppTheme.primaryColor, size: 32),
+            onPressed: () async { if (_isPlaying) await _player.pause(); else await _player.play(); },
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(
+                  value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0,
+                  backgroundColor: Colors.white24,
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                  minHeight: 4,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_formatDuration(_position), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(_formatDuration(_duration), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
