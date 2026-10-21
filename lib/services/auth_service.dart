@@ -23,16 +23,6 @@ class AuthService {
     }
   }
 
-  static Future<DocumentSnapshot> _getUserWithRetry(String uid) async {
-    try {
-      return await _db.collection('users').doc(uid).get(const GetOptions(source: Source.server));
-    } catch (e) {
-      print("Firestore Fetch Error, retrying... $e");
-      await Future.delayed(const Duration(seconds: 2));
-      return await _db.collection('users').doc(uid).get(const GetOptions(source: Source.server));
-    }
-  }
-
   static Future<String?> signUp(String fName, String lName, String email, String password) async {
     try {
       UserCredential userCred = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
@@ -56,21 +46,44 @@ class AuthService {
 
   static Future<String?> signIn(String email, String password) async {
     try {
+      // 1. محاولة تسجيل الدخول عبر Firebase Auth
       UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+      
       if (userCred.user != null) {
-        DocumentSnapshot doc = await _getUserWithRetry(userCred.user!.uid);
-        String name = (doc.data() as Map<String, dynamic>?)?['name'] ?? 'مستخدم';
+        // 2. إذا نجحت المصادقة، نحاول جلب الاسم من Firestore
+        String name = 'مستخدم';
+        try {
+          DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get();
+          if (doc.exists) {
+            name = (doc.data() as Map<String, dynamic>)['name'] ?? 'مستخدم';
+          } else {
+            // إذا لم يكن هناك ملف، ننشئ واحداً تلقائياً
+            name = userCred.user!.email?.split('@')[0] ?? 'مستخدم';
+            await _db.collection('users').doc(userCred.user!.uid).set({
+              'name': name, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
+              'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (firestoreError) {
+          // إذا فشل Firestore، لا نمنع الدخول، نستخدم الاسم الافتراضي
+          print("Firestore Fetch Error: $firestoreError");
+          name = userCred.user!.email?.split('@')[0] ?? 'مستخدم';
+        }
+        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
-        return null; 
+        return null; // نجاح الدخول
       }
-      return "حدث خطأ";
+      return "فشل الدخول";
     } on FirebaseAuthException catch (e) {
+      // إظهار الخطأ الحقيقي من Firebase Auth
       if (e.code == 'user-not-found') return "لا يوجد حساب بهذا البريد.";
       if (e.code == 'wrong-password') return "كلمة المرور غير صحيحة.";
-      return e.message;
+      if (e.code == 'invalid-email') return "صيغة البريد الإلكتروني غير صحيحة.";
+      if (e.code == 'network-request-failed') return "فشل الاتصال بالشبكة. تأكد من الإنترنت.";
+      return "خطأ: ${e.message}";
     } catch (e) { 
-      return "خطأ في الاتصال بالخادم. تأكد من الإنترنت.";
+      return "خطأ غير متوقع: ${e.toString()}";
     }
   }
 
@@ -86,26 +99,32 @@ class AuthService {
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return "تم الإلغاء";
+      
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
       UserCredential userCred = await _auth.signInWithCredential(credential);
 
       if (userCred.user != null) {
         String fullName = userCred.user!.displayName ?? 'مستخدم جوجل';
-        await _db.collection('users').doc(userCred.user!.uid).set({
-          'name': fullName, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
-          'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        try {
+          await _db.collection('users').doc(userCred.user!.uid).set({
+            'name': fullName, 'email': userCred.user!.email, 'uid': userCred.user!.uid,
+            'status': 'متاح للدراسة', 'isOnline': true, 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (e) { print("Firestore error on Google SignIn: $e"); }
+        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, fullName);
         return null; 
       }
       return "فشل الدخول";
-    } catch (e) { return "فشل الدخول بجوجل. تأكد من إعدادات Firebase."; }
+    } catch (e) {
+      return "فشل الدخول بجوجل. تأكد من إعدادات Firebase.";
+    }
   }
 
   static Future<void> logout() async {
-    try { await _auth.signOut(); } catch (e) { print("Firebase SignOut Error: $e"); }
+    try { await _auth.signOut(); } catch (e) { print("SignOut Error: $e"); }
     try { await GoogleSignIn().signOut(); } catch (e) { print("Google SignOut Error: $e"); }
     try {
       final prefs = await SharedPreferences.getInstance();
