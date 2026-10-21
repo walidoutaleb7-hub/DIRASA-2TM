@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'chat_room_screen.dart';
-import 'social_screen.dart'; // لبدء محادثة جديدة
+import 'social_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
@@ -21,14 +21,17 @@ class ChatListScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('المحادثات')),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primaryColor,
-        onPressed: () {
-          // الانتقال لشاشة الزملاء لاختيار شخص لبدء محادثة
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const SocialScreen()));
-        },
-        child: const Icon(Icons.add_comment, color: Colors.white),
+      appBar: AppBar(
+        title: const Text('المحادثات'),
+        actions: [
+          // 🚀 تم نقل زر إضافة المحادثة هنا ليكون أنيقاً
+          IconButton(
+            icon: const Icon(Icons.add_comment, color: AppTheme.primaryColor),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SocialScreen()));
+            },
+          ),
+        ],
       ),
       body: currentId == null
           ? const Center(child: Text('يرجى تسجيل الدخول أولاً', style: TextStyle(color: Colors.white)))
@@ -44,14 +47,18 @@ class ChatListScreen extends StatelessWidget {
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(
-                    child: Text('لا توجد محادثات.\nاضغط على الزر + لبدء محادثة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'لا توجد محادثات حالياً.\nاذهب إلى صفحة الزملاء وابدأ محادثة جديدة.', 
+                      textAlign: TextAlign.center, 
+                      style: TextStyle(color: Colors.grey, height: 1.5)
+                    ),
                   );
                 }
 
                 var chats = snapshot.data!.docs;
 
                 return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // مسافة للزر العائم
+                  padding: const EdgeInsets.all(16),
                   itemCount: chats.length,
                   itemBuilder: (context, index) {
                     var chat = chats[index].data() as Map<String, dynamic>;
@@ -63,7 +70,7 @@ class ChatListScreen extends StatelessWidget {
 
                     return Dismissible(
                       key: Key(chatId),
-                      direction: DismissDirection.endToStart, // السحب من اليمين لليسار
+                      direction: DismissDirection.endToStart,
                       background: Container(
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 20),
