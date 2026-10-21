@@ -293,7 +293,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     bool isAdmin = currentId == widget.adminId;
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
-      resizeToAvoidBottomInset: true, // 🚀 إصلاح جلتش الكيبورد
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.roomName), 
@@ -364,7 +364,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                   if (type == 'image' && img != null)
                                     GestureDetector(
                                       onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
-                                      child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)), // 🚀 إصلاح تجمد الصورة
+                                      child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)),
                                     )
                                   else if (type == 'audio' && audio != null)
                                     AudioPlayerWidget(base64Audio: audio)
@@ -381,7 +381,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                 ],
                               ),
                             ),
-                            // 🚀 التفاعلات تظهر كشارة أسفل الرسالة
                             if (reactions.isNotEmpty)
                               Positioned(
                                 bottom: -8,
@@ -419,7 +418,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               ),
             ),
           if (_isUploading) const LinearProgressIndicator(color: AppTheme.primaryColor),
-          // 🚀 شريط الإدخال والمايك (نظام الضغط للبدء والإيقاف)
           SafeArea(
             child: Container(
               padding: const EdgeInsets.all(8), color: AppTheme.cardColor,
@@ -429,6 +427,8 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller, enabled: !_isLocked && !_isRecording, style: const TextStyle(color: Colors.white),
+                      // 🚀 إضافة onChanged لتحديث الحالة عند كل حرف
+                      onChanged: (val) => setState(() {}),
                       decoration: InputDecoration(
                         hintText: _isLocked ? 'الروم مغلق...' : (_isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...'), 
                         hintStyle: TextStyle(color: _isRecording ? Colors.red : Colors.grey), 
@@ -440,12 +440,12 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   const SizedBox(width: 8),
                   _controller.text.isEmpty && !_isRecording
                       ? GestureDetector(
-                          onTap: _startRecording, // 🚀 ضغطة واحدة للبدء
+                          onTap: _startRecording,
                           child: CircleAvatar(radius: 24, backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: const Icon(Icons.mic, color: Colors.white)),
                         )
                       : _isRecording
                           ? GestureDetector(
-                              onTap: _stopRecording, // 🚀 ضغطة واحدة للإيقاف
+                              onTap: _stopRecording,
                               child: const CircleAvatar(radius: 24, backgroundColor: Colors.red, child: Icon(Icons.stop, color: Colors.white)),
                             )
                           : CircleAvatar(backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage())),
@@ -459,7 +459,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   }
 }
 
-// 🚀 مشغل صوت محسن مع شريط تقدم ومدة
 class AudioPlayerWidget extends StatefulWidget {
   final String base64Audio;
   const AudioPlayerWidget({super.key, required this.base64Audio});
@@ -477,11 +476,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   void initState() {
     super.initState();
     _player = AudioPlayer();
-    
     _player.durationStream.listen((d) { if (mounted && d != null) setState(() => _duration = d); });
     _player.positionStream.listen((p) { if (mounted) setState(() => _position = p); });
     _player.playerStateStream.listen((state) { if (mounted) setState(() => _isPlaying = state.playing); });
-
     _loadAudio();
   }
 
