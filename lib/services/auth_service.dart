@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -56,18 +56,26 @@ class AuthService {
 
   static Future<String?> signIn(String email, String password) async {
     try {
-      UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+      // 🚀 إضافة مهلة زمنية 20 ثانية لمنع التحميل اللانهائي
+      UserCredential userCred = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password)
+          .timeout(const Duration(seconds: 20), onTimeout: () {
+            throw TimeoutException("انتهت مهلة الاتصال. تحقق من الإنترنت.");
+          });
+
       if (userCred.user != null) {
         String name = userCred.user!.email?.split('@')[0] ?? 'مستخدم';
-        DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get();
-        
-        if (doc.exists) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          name = data['name'] ?? name;
-          // 🚀 إصلاح تاريخ الانضمام للحسابات القديمة
-          if (data['createdAt'] == null) {
-            await _db.collection('users').doc(userCred.user!.uid).update({'createdAt': FieldValue.serverTimestamp()});
+        try {
+          DocumentSnapshot doc = await _db.collection('users').doc(userCred.user!.uid).get()
+              .timeout(const Duration(seconds: 10)); // مهلة لجلب البيانات
+          if (doc.exists) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            name = data['name'] ?? name;
+            if (data['createdAt'] == null) {
+              await _db.collection('users').doc(userCred.user!.uid).update({'createdAt': FieldValue.serverTimestamp()});
+            }
           }
+        } catch (firestoreError) {
+          print("Firestore error during signIn (non-fatal): $firestoreError");
         }
         
         final prefs = await SharedPreferences.getInstance();
@@ -75,11 +83,16 @@ class AuthService {
         return null; 
       }
       return "فشل الدخول";
+    } on TimeoutException catch (e) {
+      return e.message; // رسالة المهلة الزمنية
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') return "لا يوجد حساب بهذا البريد.";
       if (e.code == 'wrong-password') return "كلمة المرور غير صحيحة.";
+      if (e.code == 'network-request-failed') return "فشل الاتصال بالشبكة. تأكد من الإنترنت.";
       return e.message;
-    } catch (e) { return "خطأ في الاتصال."; }
+    } catch (e) { 
+      return "خطأ غير متوقع: ${e.toString()}";
+    }
   }
 
   static Future<String?> resetPassword(String email) async {
@@ -112,8 +125,7 @@ class AuthService {
       }
       return "فشل";
     } catch (e) { 
-      // 🚀 إظهار الخطأ الحقيقي
-      return "فشل جوجل: ${e.toString().substring(0, (e.toString().length > 50 ? 50 : e.toString().length))}"; 
+      return "فشل جوجل: ${e.toString().substring(0, (e.toString().length > 70 ? 70 : e.toString().length))}"; 
     }
   }
 
