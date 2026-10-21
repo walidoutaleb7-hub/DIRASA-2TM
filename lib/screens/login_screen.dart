@@ -120,10 +120,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ShaderMask(
                             blendMode: BlendMode.srcIn,
                             shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                            child: GoogleFonts.cairo(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 2.0, child: const Text('DIRASA 2TM')),
+                            // ✅ إصلاح السطر الأول
+                            child: Text(
+                              'DIRASA 2TM',
+                              style: GoogleFonts.cairo(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 2.0),
+                            ),
                           ),
                           const SizedBox(height: 4),
-                          GoogleFonts.cairo(color: Colors.grey, fontSize: 12, letterSpacing: 1.2, child: const Text('مستقبل التعليم يبدأ من هنا')),
+                          // ✅ إصلاح السطر الثاني
+                          Text(
+                            'مستقبل التعليم يبدأ من هنا',
+                            style: GoogleFonts.cairo(color: Colors.grey, fontSize: 12, letterSpacing: 1.2),
+                          ),
                         ],
                       ),
                     ),
