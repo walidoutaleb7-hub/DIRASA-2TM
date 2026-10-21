@@ -111,8 +111,47 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   String? _userName;
   final TextEditingController _joinController = TextEditingController();
-  final String _dailyQuote = "النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.";
   bool _isLoading = true;
+
+  // 🚀 30 نصيحة تحفيزية (تتغير كل يوم حسب تاريخ الشهر)
+  final List<String> _quotes = [
+    "النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.",
+    "لا تنتظر الإلهام، ابدأ وسيأتي الإلهام أثناء العمل.",
+    "الدراسة اليوم هي راحة الغد.",
+    "كل دقيقة تركيز تقربك من هدفك.",
+    "من جدّ وجد، ومن زرع حصد.",
+    "لا تخف من الفشل، بل خف من ألا تحاول.",
+    "العلم نور والجهل ظلام.",
+    "النجاح لا يأتي إليك، بل تذهب إليه.",
+    "اجعل من تعبك اليوم فخراً لغدك.",
+    "الطريق إلى القمة مليء بالصعاب، لكن المنظر يستحق.",
+    "لا تقارن نفسك بالآخرين، قارن نفسك بنفسك بالأمس.",
+    "الاستمرارية أهم من الكمال.",
+    "اقرأ صفحة واحدة كل يوم، وستنهي كتاباً في شهر.",
+    "الوقت هو أغلى ما تملك، فلا تضيعه.",
+    "الفشل ليس نهاية الطريق، بل بداية التعلم.",
+    "كل خبير كان يوماً مبتدئاً.",
+    "ثق بنفسك، فأنت أقوى مما تظن.",
+    "العقول العظيمة تناقش الأفكار، والعقول الصغيرة تناقش الأشخاص.",
+    "التركيز هو سر الإنجاز.",
+    "لا تنتظر الفرصة، بل اصنعها.",
+    "من يريد النجاح يجد طريقاً، ومن يريد الأعذار يجد حجة.",
+    "القراءة غذاء العقل.",
+    "افعل شيئاً اليوم يفتخر به مستقبلك.",
+    "النجاح ليس صدفة، بل نتيجة جهد متواصل.",
+    "لا تستسلم، فالبدايات دائماً صعبة.",
+    "التعلم رحلة، لا محطة وصول.",
+    "كل صباح فرصة جديدة للبدء من جديد.",
+    "العمل الجاد يهزم الموهبة عندما لا تعمل الموهبة بجد.",
+    "أنت أقدر مما تتخيل، وأذكى مما تعتقد.",
+    "لا تنتظر أن تكون جاهزاً، ابدأ وستتعلم في الطريق.",
+  ];
+
+  String get _dailyQuote {
+    // 🚀 تغيير النصيحة تلقائياً كل 24 ساعة حسب يوم الشهر
+    final dayIndex = DateTime.now().day % _quotes.length;
+    return _quotes[dayIndex];
+  }
 
   int _seconds = 1500;
   bool _isTimerRunning = false;
@@ -136,6 +175,8 @@ class _HomeTabState extends State<HomeTab> {
     if (_isTimerRunning) {
       _timer?.cancel();
       setState(() => _isTimerRunning = false);
+      _saveStudyTime();
+      setState(() => _seconds = 1500);
     } else {
       setState(() => _isTimerRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -144,7 +185,7 @@ class _HomeTabState extends State<HomeTab> {
         } else {
           timer.cancel();
           setState(() => _isTimerRunning = false);
-          _saveStudyTime(); 
+          _saveStudyTime();
           setState(() => _seconds = 1500);
         }
       });
@@ -154,21 +195,18 @@ class _HomeTabState extends State<HomeTab> {
   void _resetTimer() async {
     _timer?.cancel();
     setState(() => _isTimerRunning = false);
-    await _saveStudyTime();
     setState(() => _seconds = 1500);
   }
 
   Future<void> _saveStudyTime() async {
     int studiedSeconds = 1500 - _seconds;
-    int studiedMinutes = studiedSeconds ~/ 60;
-    
-    if (studiedMinutes > 0) {
+    if (studiedSeconds > 0) {
       try {
         await FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).update({
-          'studyTime': FieldValue.increment(studiedMinutes)
+          'studyTime': FieldValue.increment(studiedSeconds)
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedMinutes دقيقة دراسة!')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedSeconds ثانية دراسة!')));
         }
       } catch (e) {
         if (mounted) {
@@ -206,7 +244,7 @@ class _HomeTabState extends State<HomeTab> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
+        padding: const EdgeInsets.fromLTRB(24, 10, 24, 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -217,6 +255,11 @@ class _HomeTabState extends State<HomeTab> {
                 if (snapshot.hasData && snapshot.data!.data() != null) {
                   studyTime = (snapshot.data!.data() as Map<String, dynamic>)['studyTime'] ?? 0;
                 }
+                int minutes = studyTime ~/ 60;
+                String displayTime = minutes >= 60 
+                    ? '${minutes ~/ 60} ساعة و ${minutes % 60} دقيقة' 
+                    : (studyTime < 60 ? '$studyTime ثانية' : '$minutes دقيقة');
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -226,7 +269,7 @@ class _HomeTabState extends State<HomeTab> {
                       children: [
                         const Icon(Icons.timer, size: 14, color: AppTheme.primaryColor),
                         const SizedBox(width: 4),
-                        Text('إجمالي الدراسة: $studyTime دقيقة', style: const TextStyle(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                        Text('إجمالي الدراسة: $displayTime', style: const TextStyle(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ],
@@ -284,6 +327,7 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 20),
 
+            // 🚀 بطاقة النصيحة اليومية (تتغير كل يوم)
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
