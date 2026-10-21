@@ -22,7 +22,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final String? currentId = AuthService.currentUserId;
   bool _isUploading = false;
 
-  void _sendMessage({String? text, String? base64Img}) async {
+  Future<void> _sendMessage({String? text, String? base64Img}) async {
     if (text == null && base64Img == null) return;
     _controller.clear();
     

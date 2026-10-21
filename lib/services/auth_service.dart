@@ -89,7 +89,7 @@ class AuthService {
       final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: '745868828443-v5mvqkeue2rqadpsibqbq1lnjdkh59iv.apps.googleusercontent.com');
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return "تم الإلغاء";
-      final GoogleAuthentication auth = await googleUser.authentication;
+      final GoogleSignInAuthentication auth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken, idToken: auth.idToken);
       UserCredential userCred = await _auth.signInWithCredential(credential);
       if (userCred.user != null) {

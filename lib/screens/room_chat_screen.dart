@@ -29,7 +29,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   @override
   void initState() { super.initState(); _isLocked = widget.isLocked; }
 
-  void _sendMessage({String? text, String? base64Img}) async {
+  Future<void> _sendMessage({String? text, String? base64Img}) async {
     if (_isLocked) return;
     if (text == null && base64Img == null) return;
     _controller.clear();
