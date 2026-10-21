@@ -1,14 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart'; // ربط شاشة الملف الشخصي
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('ميزة "$feature" ستتوفر في التحديث القادم!'), backgroundColor: AppTheme.primaryColor),
+    );
+  }
+
+  void _showGuide(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        title: const Text('دليل الاستخدام', style: TextStyle(color: Colors.white)),
+        content: const SingleChildScrollView(
+          child: Text(
+            'مرحباً بك في DIRASA 2TM!\n\n'
+            '1. القاعات: ادخل لأي مادة لتجد رومات النقاش.\n'
+            '2. إنشاء روم: يمكنك إنشاء رومك الخاص وتصبح الأدمن.\n'
+            '3. الأدمن: يمكنه قفل الدردشة أو حذف الرسائل.\n'
+            '4. الفيديو: ادخل للمكالمة لمشاهدة الشاشة والكاميرا.\n'
+            '5. المساعد AI: اسأله عن أي درس أو معادلة صعبة.\n'
+            '6. الدردشة: تواصل مع أي زميل مباشرة.',
+            style: TextStyle(color: Colors.grey, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('فهمت')),
+        ],
+      ),
+    );
+  }
+
+  void _shareApp(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        title: const Text('مشاركة التطبيق', style: TextStyle(color: Colors.white)),
+        content: const Text('يمكنك مشاركة التطبيق مع زملائك في القسم عن طريق إرسال ملف الـ APK لهم، أو مشاركة رابط المستودع.', style: TextStyle(color: Colors.grey)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(const ClipboardData(text: 'تطبيق DIRASA 2TM - مستقبل التعليم يبدأ من هنا!'));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ اسم التطبيق للمشاركة')));
+            }, 
+            child: const Text('نسخ الاسم')
+          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('الإعدادات')),
       body: Column(
         children: [
@@ -16,12 +72,52 @@ class SettingsScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                _buildSettingTile(Icons.person_outline, 'الملف الشخصي', 'إدارة معلومات حسابك'),
+                // 1. الملف الشخصي
+                _buildSettingTile(
+                  Icons.person_outline, 'الملف الشخصي', 'إدارة معلومات حسابك',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                ),
                 const SizedBox(height: 12),
-                _buildSettingTile(Icons.notifications_none, 'الإشعارات', 'تخصيص التنبيهات'),
+                
+                // 2. دليل الاستخدام (ميزة جديدة ومفيدة جداً)
+                _buildSettingTile(
+                  Icons.menu_book, 'دليل الاستخدام', 'كيف تستخدم التطبيق؟',
+                  onTap: () => _showGuide(context),
+                ),
                 const SizedBox(height: 12),
-                _buildSettingTile(Icons.security, 'الخصوصية والأمان', 'أمان البيانات'),
+
+                // 3. مشاركة التطبيق
+                _buildSettingTile(
+                  Icons.share, 'مشاركة التطبيق', 'أرسل التطبيق لزملائك',
+                  onTap: () => _shareApp(context),
+                ),
+                const SizedBox(height: 12),
+
+                // 4. الإشعارات
+                _buildSettingTile(
+                  Icons.notifications_none, 'الإشعارات', 'تخصيص التنبيهات',
+                  onTap: () => _showComingSoon(context, 'الإشعارات'),
+                ),
+                const SizedBox(height: 12),
+
+                // 5. الخصوصية والأمان
+                _buildSettingTile(
+                  Icons.security, 'الخصوصية والأمان', 'أمان البيانات',
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: AppTheme.cardColor,
+                        title: const Text('الخصوصية', style: TextStyle(color: Colors.white)),
+                        content: const Text('بياناتك محمية عبر Firebase وتستخدم فقط لأغراض الدراسة داخل القسم.', style: TextStyle(color: Colors.grey)),
+                        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))],
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 32),
+                
+                // زر تسجيل الخروج
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.withOpacity(0.1),
@@ -42,6 +138,7 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+          
           // التوقيع الخاص بك
           Container(
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -67,7 +164,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingTile(IconData icon, String title, String subtitle) {
+  Widget _buildSettingTile(IconData icon, String title, String subtitle, {required VoidCallback onTap}) {
     return Container(
       decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
       child: ListTile(
@@ -80,7 +177,7 @@ class SettingsScreen extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-        onTap: () {},
+        onTap: onTap,
       ),
     );
   }
