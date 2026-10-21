@@ -1,50 +1,64 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-class GpaCalculatorScreen extends StatefulWidget {
-  const GpaCalculatorScreen({super.key});
-  @override
-  State<GpaCalculatorScreen> createState() => _GpaCalculatorScreenState();
-}
-
 class SubjectData {
   final String name;
   double coeff;
   final TextEditingController devoirCtrl = TextEditingController();
   final TextEditingController evalCtrl = TextEditingController();
   final TextEditingController examCtrl = TextEditingController();
+  final TextEditingController coeffCtrl;
 
-  SubjectData(this.name, this.coeff);
-  
-  // حساب معدل المادة (متوسط العلامات المدخلة)
+  SubjectData(this.name, this.coeff) : coeffCtrl = TextEditingController(text: coeff.toStringAsFixed(0));
+
+  // حساب معدل المادة بالطريقة الرسمية: (فرض + تقويم + 2*اختبار) / 4
   double getAverage() {
-    double d = double.tryParse(devoirCtrl.text) ?? -1;
-    double e = double.tryParse(evalCtrl.text) ?? -1;
-    double x = double.tryParse(examCtrl.text) ?? -1;
+    double? d = double.tryParse(devoirCtrl.text);
+    double? e = double.tryParse(evalCtrl.text);
+    double? x = double.tryParse(examCtrl.text);
+
+    // التحقق من العلامات (بين 0 و 20)
+    if (d != null && (d < 0 || d > 20)) d = null;
+    if (e != null && (e < 0 || e > 20)) e = null;
+    if (x != null && (x < 0 || x > 20)) x = null;
+
+    // إذا كانت الثلاثة موجودة، نطبق المعادلة الرسمية
+    if (d != null && e != null && x != null) {
+      return (d + e + 2 * x) / 4;
+    }
+    // إذا كان اثنان فقط، نأخذ متوسطهما
+    else if (d != null && e != null) return (d + e) / 2;
+    else if (d != null && x != null) return (d + x) / 2;
+    else if (e != null && x != null) return (e + x) / 2;
+    // إذا كان واحد فقط، نأخذه كما هو
+    else if (d != null) return d;
+    else if (e != null) return e;
+    else if (x != null) return x;
     
-    List<double> grades = [];
-    if (d >= 0 && d <= 20) grades.add(d);
-    if (e >= 0 && e <= 20) grades.add(e);
-    if (x >= 0 && x <= 20) grades.add(x);
-    
-    if (grades.isEmpty) return 0;
-    return grades.reduce((a, b) => a + b) / grades.length;
+    return 0;
   }
 
   bool get hasInput => devoirCtrl.text.isNotEmpty || evalCtrl.text.isNotEmpty || examCtrl.text.isNotEmpty;
+  void dispose() { devoirCtrl.dispose(); evalCtrl.dispose(); examCtrl.dispose(); coeffCtrl.dispose(); }
+}
+
+class GpaCalculatorScreen extends StatefulWidget {
+  const GpaCalculatorScreen({super.key});
+  @override
+  State<GpaCalculatorScreen> createState() => _GpaCalculatorScreenState();
 }
 
 class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
   final List<SubjectData> subjects = [
     SubjectData('الرياضيات', 5),
     SubjectData('العلوم الفيزيائية', 4),
-    SubjectData('التكنولوجيا (حسب التخصص)', 4),
-    SubjectData('اللغة العربية وآدابها', 2),
+    SubjectData('التكنولوجيا', 4),
+    SubjectData('اللغة العربية', 2),
     SubjectData('اللغة الفرنسية', 2),
     SubjectData('اللغة الإنجليزية', 2),
     SubjectData('التاريخ والجغرافيا', 1),
     SubjectData('العلوم الإسلامية', 1),
-    SubjectData('التربية البدنية والرياضية', 1),
+    SubjectData('التربية البدنية', 1),
     SubjectData('اللغة الأمازيغية', 1),
   ];
 
@@ -52,11 +66,21 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
   double _totalPoints = 0;
   double _totalCoeffs = 0;
 
+  @override
+  void dispose() {
+    for (var sub in subjects) sub.dispose();
+    super.dispose();
+  }
+
   void _calculate() {
     double totalPoints = 0;
     double totalCoeffs = 0;
-    
+
     for (var sub in subjects) {
+      // تحديث المعامل من الحقل إذا تم تعديله
+      double? newCoeff = double.tryParse(sub.coeffCtrl.text);
+      if (newCoeff != null && newCoeff > 0) sub.coeff = newCoeff;
+
       if (sub.hasInput) {
         double avg = sub.getAverage();
         totalPoints += avg * sub.coeff;
@@ -65,7 +89,7 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
     }
 
     if (totalCoeffs == 0) {
-      setState(() { _result = null; });
+      setState(() => _result = null);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال علامة واحدة على الأقل')));
       return;
     }
@@ -86,12 +110,8 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              'أدخل علاماتك (املأ ما لديك فقط)',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
+            const Text('أدخل علاماتك (املأ ما لديك فقط)', style: TextStyle(color: Colors.grey, fontSize: 14)),
             const SizedBox(height: 16),
-            
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -100,7 +120,7 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                 var sub = subjects[index];
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(16),
@@ -112,15 +132,16 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(sub.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          Expanded(child: Text(sub.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
                           Row(
                             children: [
-                              const Text('المعامل: ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              const Text('المعامل:', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              const SizedBox(width: 4),
                               SizedBox(
-                                width: 40,
+                                width: 45,
                                 height: 30,
                                 child: TextField(
-                                  controller: TextEditingController(text: sub.coeff.toInt().toString()),
+                                  controller: sub.coeffCtrl,
                                   keyboardType: TextInputType.number,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
@@ -130,24 +151,20 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                                     fillColor: AppTheme.bgColor,
                                     border: OutlineInputBorder(borderSide: BorderSide.none),
                                   ),
-                                  onChanged: (val) {
-                                    double? newCoeff = double.tryParse(val);
-                                    if (newCoeff != null) sub.coeff = newCoeff;
-                                  },
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
-                          Expanded(child: _buildGradeField('الفرض', sub.devoirCtrl)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildGradeField('التقويم', sub.evalCtrl)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildGradeField('الاختبار', sub.examCtrl)),
+                          Expanded(child: _buildGradeField('فرض', sub.devoirCtrl)),
+                          const SizedBox(width: 6),
+                          Expanded(child: _buildGradeField('تقويم', sub.evalCtrl)),
+                          const SizedBox(width: 6),
+                          Expanded(child: _buildGradeField('اختبار', sub.examCtrl)),
                         ],
                       ),
                     ],
@@ -155,9 +172,7 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                 );
               },
             ),
-            
             const SizedBox(height: 24),
-            
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -171,9 +186,7 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(height: 24),
-            
             if (_result != null)
               Container(
                 width: double.infinity,
@@ -187,10 +200,7 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                   children: [
                     const Text('معدلك الفصلي المتوقع', style: TextStyle(color: Colors.white, fontSize: 16)),
                     const SizedBox(height: 8),
-                    Text(
-                      _result!.toStringAsFixed(2),
-                      style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
-                    ),
+                    Text(_result!.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text(
                       _result! >= 10 ? 'مبروك، أنت ناجح! استمر في التفوق.' : 'تحتاج إلى مراجعة بعض المواد. لا تستسلم!',
@@ -221,7 +231,7 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
         labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
         filled: true,
         fillColor: AppTheme.bgColor,
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
     );
