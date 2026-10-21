@@ -1,4 +1,4 @@
-name: Build Debug APK (Working)
+name: Build Debug APK (Fixed Space)
 
 on:
   push:
@@ -13,6 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # 🧹 مسح مساحة ضخمة جداً من السيرفر
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/25.1.8937393
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/26.1.10909125
+          sudo apt-get clean
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -27,12 +39,15 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-stable
+          key: ${{ runner.os }}-gradle-debug-fixed
+
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
+
       - name: Increase Gradle Memory
         run: |
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+
       - name: Fix Android Manifest
         run: |
           python3 -c '
@@ -56,35 +71,42 @@ jobs:
                       act.set("{http://schemas.android.com/apk/res/android}exported", "true")
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
-      - name: Fix Gradle Config
+
+      # 🚀 إجبار Gradle على بناء arm64 فقط، وحذف x86 نهائياً
+      - name: Fix Gradle Config (Filter ABIs)
         run: |
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/g' android/app/build.gradle.kts
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 34/g' android/app/build.gradle.kts
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
           sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
           sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
-          if ! grep -q "multiDexEnabled" android/app/build.gradle.kts; then
-            sed -i 's/defaultConfig {/defaultConfig {\n            multiDexEnabled = true/' android/app/build.gradle.kts
-          fi
+          
+          # إضافة فلتر ABI
+          sed -i 's/defaultConfig {/defaultConfig {\n            ndk {\n                abiFilters.clear()\n                abiFilters.add("arm64-v8a")\n            }\n            multiDexEnabled = true/' android/app/build.gradle.kts
+
       - name: Setup Firebase Config
         run: |
           cp google-services.json android/app/google-services.json
           sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services") version "4.4.1" apply false/' android/settings.gradle.kts
           sed -i 's/plugins {/plugins {\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts
+
       - name: Get dependencies
         run: flutter pub get
+
       - name: Generate App Icons
         run: dart run flutter_launcher_icons
+
       - name: Build Debug APK
         run: flutter build apk --debug --target-platform android-arm64
+
       - name: Upload APK
         uses: ncipollo/release-action@v1
         with:
           artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "debug-stable-v1.0.${{ github.run_number }}"
+          tag: "debug-stable-v2.0.${{ github.run_number }}"
           name: "DIRASA 2TM - Debug Stable ${{ github.run_number }}"
-          body: "نسخة مضمونة تعمل على هاتفك"
+          body: "النسخة النهائية المضمونة"
           draft: false
           prerelease: true
           allowUpdates: true
