@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -27,15 +28,42 @@ class _SubjectRoomDetailScreenState extends State<SubjectRoomDetailScreen> {
 
   void _sendMessage() async {
     String text = _controller.text.trim();
-    if (text.isEmpty || currentId == null) return;
-    _controller.clear();
+    
+    if (currentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خطأ: يجب تسجيل الخروج والدخول مجدداً لتفعيل الشات.'), backgroundColor: Colors.red));
+      return;
+    }
+    if (text.isEmpty) return;
 
-    await FirebaseFirestore.instance.collection('rooms').doc(widget.roomId).collection('messages').add({
-      'senderId': currentId,
-      'senderName': _userName ?? 'طالب',
-      'text': text,
-      'time': FieldValue.serverTimestamp(),
-    });
+    _controller.clear();
+    FocusScope.of(context).unfocus(); 
+
+    try {
+      await FirebaseFirestore.instance.collection('rooms').doc(widget.roomId).collection('messages').add({
+        'senderId': currentId,
+        'senderName': _userName ?? 'طالب',
+        'text': text,
+        'time': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الإرسال: $e')));
+    }
+  }
+
+  void _showQR() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        content: QrImageView(data: widget.roomId, size: 200),
+      ),
+    );
+  }
+
+  void _joinVideoCall() {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ConferenceScreen(conferenceID: widget.roomId, userName: _userName ?? 'طالب')
+    ));
   }
 
   @override
@@ -45,14 +73,8 @@ class _SubjectRoomDetailScreenState extends State<SubjectRoomDetailScreen> {
       appBar: AppBar(
         title: Text(widget.subjectName),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.video_call, color: Colors.greenAccent),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => ConferenceScreen(conferenceID: widget.roomId, userName: _userName ?? 'طالب')
-              ));
-            },
-          )
+          IconButton(icon: const Icon(Icons.qr_code, color: Colors.white), onPressed: _showQR),
+          IconButton(icon: const Icon(Icons.video_call, color: Colors.greenAccent), onPressed: _joinVideoCall),
         ],
       ),
       body: Column(
@@ -61,9 +83,14 @@ class _SubjectRoomDetailScreenState extends State<SubjectRoomDetailScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('rooms').doc(widget.roomId).collection('messages').orderBy('time', descending: true).snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) return Center(child: Text('خطأ في تحميل الرسائل: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
                 
                 var messages = snapshot.data!.docs;
+
+                if (messages.isEmpty) {
+                  return const Center(child: Text('لا توجد رسائل بعد. كن أول من يبدأ النقاش!', style: TextStyle(color: Colors.grey)));
+                }
 
                 return ListView.builder(
                   reverse: true,
@@ -74,7 +101,6 @@ class _SubjectRoomDetailScreenState extends State<SubjectRoomDetailScreen> {
                     bool isMe = msg['senderId'] == currentId;
                     String text = msg['text'] ?? '';
                     
-                    // 🔍 كشف روابط اليوتيوب
                     bool isYoutube = text.contains('youtube.com') || text.contains('youtu.be');
                     String? videoId;
                     if (isYoutube) {
@@ -131,7 +157,7 @@ class _SubjectRoomDetailScreenState extends State<SubjectRoomDetailScreen> {
                     controller: _controller,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'اكتب رسالة أو ألصق رابط يوتيوب...',
+                      hintText: 'اكتب رسالة أو ألصق رابط يوتيوب كامل...',
                       hintStyle: const TextStyle(color: Colors.grey),
                       filled: true,
                       fillColor: AppTheme.bgColor,

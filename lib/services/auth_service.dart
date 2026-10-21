@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
@@ -7,7 +8,6 @@ class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // دالة لجلب الـ UID الحالي (تستخدم في شاشات الدردشة)
   static String? get currentUserId => _auth.currentUser?.uid;
 
   static Future<String?> getUserName() async {
@@ -15,54 +15,77 @@ class AuthService {
     return prefs.getString(_keyUserName);
   }
 
-  static Future<bool> login(String name) async {
+  static Future<bool> signInWithGoogle() async {
     try {
-      // 1. إنشاء بريد إلكتروني وهمي بناءً على الاسم
-      String cleanName = name.trim().replaceAll(' ', '_').toLowerCase();
-      String email = "${cleanName}_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}@dirasa.com";
-      String password = "DirasaSecurePass123!";
-
-      // 2. إنشاء الحساب في Firebase
-      UserCredential userCred = await _auth.createUserWithEmailAndPassword(
-        email: email, 
-        password: password
-      );
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return false;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+      UserCredential userCred = await _auth.signInWithCredential(credential);
 
       if (userCred.user != null) {
-        // 3. حفظ بيانات المستخدم في Firestore
         await _db.collection('users').doc(userCred.user!.uid).set({
-          'name': name,
-          'email': email,
+          'name': userCred.user!.displayName ?? 'مستخدم جوجل',
+          'email': userCred.user!.email,
           'uid': userCred.user!.uid,
           'status': 'متاح للدراسة',
           'studyTime': 0,
           'createdAt': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyUserName, userCred.user!.displayName ?? 'مستخدم');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("Google Sign-In Error: $e");
+      return false;
+    }
+  }
 
-        // 4. حفظ الاسم محلياً للدخول السريع
+  static Future<bool> login(String name) async {
+    try {
+      // محاولة الدخول العادي
+      String cleanName = name.trim().replaceAll(' ', '_').toLowerCase();
+      String email = "${cleanName}_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}@dirasa.com";
+      String password = "DirasaSecurePass123!";
+      UserCredential userCred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+
+      if (userCred.user != null) {
+        await _db.collection('users').doc(userCred.user!.uid).set({
+          'name': name, 'email': email, 'uid': userCred.user!.uid,
+          'status': 'متاح للدراسة', 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+        });
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_keyUserName, name);
         return true;
       }
       return false;
     } catch (e) {
-      print("Firebase Login Error: $e");
-      // خطة طوارئ: إذا فشل Firebase، ندخلك محلياً لكي لا ينهار التطبيق
+      // 🚀 خطة الطوارئ: الدخول المجهول (Anonymous Auth) لضمان وجود ID حقيقي
+      try {
+        UserCredential anonCred = await _auth.signInAnonymously();
+        if (anonCred.user != null) {
+           await _db.collection('users').doc(anonCred.user!.uid).set({
+            'name': name, 'uid': anonCred.user!.uid,
+            'status': 'متاح للدراسة', 'studyTime': 0, 'createdAt': FieldValue.serverTimestamp(),
+          });
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_keyUserName, name);
+          return true;
+        }
+      } catch (anonError) {
+         print("Anonymous Auth Error: $anonError");
+      }
+      // إذا فشل كل شيء، ندخلك محلياً (لكن الزملاء لن يعملوا)
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUserName, name);
       return true; 
     }
   }
 
-  static Future<void> updateStudyTime(int minutes) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      try { await _db.collection('users').doc(user.uid).update({'studyTime': FieldValue.increment(minutes)}); } catch (_) {}
-    }
-  }
-
   static Future<void> logout() async {
-    try { await _auth.signOut(); } catch (_) {}
+    try { await GoogleSignIn().signOut(); await _auth.signOut(); } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserName);
   }
