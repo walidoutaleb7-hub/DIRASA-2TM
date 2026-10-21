@@ -16,7 +16,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final String? currentId = AuthService.currentUserId;
   bool _isEditing = false;
-  bool _isUploading = false;
+  bool _isLoading = false;
   
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _statusController = TextEditingController();
@@ -31,17 +31,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _saveProfile(String oldName, String oldStatus) async {
-    setState(() => _isUploading = true);
-    String newName = _nameController.text.trim().isEmpty ? oldName : _nameController.text.trim();
-    String newStatus = _statusController.text.trim().isEmpty ? oldStatus : _statusController.text.trim();
+  void _saveProfile() async {
+    if (_nameController.text.trim().isEmpty) return;
+    setState(() => _isLoading = true);
+    
     String? base64Image = _pickedImage != null ? base64Encode(_pickedImage!) : null;
-
-    await AuthService.updateUserData(newName, newStatus, base64Image);
+    await AuthService.updateUserData(_nameController.text.trim(), _statusController.text.trim(), base64Image);
     
     if (mounted) {
-      setState(() { _isEditing = false; _isUploading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ بنجاح!')));
+      setState(() {
+        _isEditing = false;
+        _isLoading = false;
+        _pickedImage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات بنجاح!')));
     }
   }
 
@@ -61,10 +64,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 String name = user['name'] ?? 'مستخدم';
                 int studyTime = user['studyTime'] ?? 0;
                 String status = user['status'] ?? 'متاح للدراسة';
+                
+                // إصلاح تاريخ الانضمام
                 Timestamp? joined = user['createdAt'];
                 String joinDate = joined != null ? DateFormat('yyyy/MM/dd').format(joined.toDate()) : 'غير معروف';
+                
                 String? base64Str = user['profileImage'];
-
                 Uint8List? imageBytes;
                 if (_pickedImage != null) {
                   imageBytes = _pickedImage;
@@ -114,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Expanded(child: ElevatedButton(onPressed: () => setState(() => _isEditing = false), style: ElevatedButton.styleFrom(backgroundColor: Colors.grey), child: const Text('إلغاء'))),
                             const SizedBox(width: 12),
-                            Expanded(child: ElevatedButton(onPressed: _isUploading ? null : () => _saveProfile(name, status), child: _isUploading ? const CircularProgressIndicator(color: Colors.white) : const Text('حفظ التغييرات'))),
+                            Expanded(child: ElevatedButton(onPressed: _isLoading ? null : _saveProfile, child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('حفظ التغييرات'))),
                           ],
                         )
                       ] else ...[

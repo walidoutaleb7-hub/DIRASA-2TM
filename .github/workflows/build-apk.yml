@@ -1,4 +1,4 @@
-name: Build Debug APK (Fixed Space)
+name: Build Flutter APK (Final Stable)
 
 on:
   push:
@@ -13,18 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # 🧹 مسح مساحة ضخمة جداً من السيرفر
-      - name: Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo rm -rf /usr/local/lib/android/sdk/ndk/25.1.8937393
-          sudo rm -rf /usr/local/lib/android/sdk/ndk/26.1.10909125
-          sudo apt-get clean
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -39,14 +27,20 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-debug-fixed
-
+          key: ${{ runner.os }}-gradle-final
+      
       - name: Create Android Scaffolding
         run: flutter create . --platforms=android
 
-      - name: Increase Gradle Memory
+      # 🚀 إجبار البناء على استخدام البصمة الثابتة
+      - name: Setup Debug Keystore
         run: |
-          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+          mkdir -p ~/.android
+          cp debug.keystore ~/.android/debug.keystore
+          cp debug.keystore android/app/debug.keystore
+
+      - name: Increase Gradle Memory
+        run: echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
 
       - name: Fix Android Manifest
         run: |
@@ -72,17 +66,16 @@ jobs:
               tree.write(path, encoding="utf-8", xml_declaration=True)
           '
 
-      # 🚀 إجبار Gradle على بناء arm64 فقط، وحذف x86 نهائياً
-      - name: Fix Gradle Config (Filter ABIs)
+      - name: Fix Gradle Config
         run: |
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/g' android/app/build.gradle.kts
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 34/g' android/app/build.gradle.kts
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle.kts
           sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
-          sed -i 's/isShrinkResources = true/isShrinkResources = false/g' android/app/build.gradle.kts
-          
-          # إضافة فلتر ABI
-          sed -i 's/defaultConfig {/defaultConfig {\n            ndk {\n                abiFilters.clear()\n                abiFilters.add("arm64-v8a")\n            }\n            multiDexEnabled = true/' android/app/build.gradle.kts
+          # 🚀 إجبار Gradle على استخدام debug.keystore
+          if ! grep -q "storeFile = file(\"debug.keystore\")" android/app/build.gradle.kts; then
+            sed -i 's/signingConfigs {/signingConfigs {\n        getByName("debug") {\n            storeFile = file("debug.keystore")\n            storePassword = "android"\n            keyAlias = "androiddebugkey"\n            keyPassword = "android"\n        }/' android/app/build.gradle.kts
+          fi
 
       - name: Setup Firebase Config
         run: |
@@ -93,10 +86,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate App Icons
-        run: dart run flutter_launcher_icons
-
-      - name: Build Debug APK
+      - name: Build APK
         run: flutter build apk --debug --target-platform android-arm64
 
       - name: Upload APK
@@ -104,9 +94,9 @@ jobs:
         with:
           artifacts: "build/app/outputs/flutter-apk/app-debug.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "debug-stable-v2.0.${{ github.run_number }}"
-          name: "DIRASA 2TM - Debug Stable ${{ github.run_number }}"
-          body: "النسخة النهائية المضمونة"
+          tag: "final-v1.0.${{ github.run_number }}"
+          name: "DIRASA 2TM - Final ${{ github.run_number }}"
+          body: "النسخة النهائية"
           draft: false
           prerelease: true
           allowUpdates: true
