@@ -131,12 +131,12 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
+  // 🚀 زر التشغيل / الإيقاف المؤقت (لا يحفظ، فقط يوقف العداد)
   void _toggleTimer() {
     if (_isTimerRunning) {
       _timer?.cancel();
       setState(() => _isTimerRunning = false);
-      _saveStudyTime();
-      setState(() => _seconds = 1500);
+      // 🚀 إزالة الحفظ والتصفير من هنا
     } else {
       setState(() => _isTimerRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -145,13 +145,14 @@ class _HomeTabState extends State<HomeTab> {
         } else {
           timer.cancel();
           setState(() => _isTimerRunning = false);
-          _saveStudyTime();
+          _saveStudyTime(); // يحفظ فقط عند اكتمال 25 دقيقة
           setState(() => _seconds = 1500);
         }
       });
     }
   }
 
+  // 🚀 زر الإيقاف النهائي (Stop) يحفظ الوقت ويعيد الضبط
   void _stopAndSaveTimer() async {
     _timer?.cancel();
     setState(() => _isTimerRunning = false);
@@ -193,7 +194,7 @@ class _HomeTabState extends State<HomeTab> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      resizeToAvoidBottomInset: true, // 🚀 السماح بالتصغير مع الكيبورد
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('DIRASA 2TM', style: TextStyle(color: Colors.white, letterSpacing: 2, fontSize: 20)),
         actions: [
