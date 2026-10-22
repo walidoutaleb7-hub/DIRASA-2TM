@@ -365,8 +365,8 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                         decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5), width: 1), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))]),
-                                        child: Row(mainAxisSize: MainAxisSize.min, children: reactions.entries.where((e) => (e.value as List).isNotEmpty).map((entry) {
-                                          return Padding(padding: const EdgeInsets.symmetric(horizontal: 2.0), child: Text('${entry.key} ${(e.value as List).length}', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)));
+                                        child: Row(mainAxisSize: MainAxisSize.min, children: reactions.entries.where((e) => (entry.value as List).isNotEmpty).map((entry) {
+                                          return Padding(padding: const EdgeInsets.symmetric(horizontal: 2.0), child: Text('${entry.key} ${(entry.value as List).length}', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)));
                                         }).toList()),
                                       ),
                                     ),
