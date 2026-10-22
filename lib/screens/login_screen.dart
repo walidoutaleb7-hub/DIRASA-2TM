@@ -26,7 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_isLogin) {
       error = await AuthService.signIn(_emailController.text, _passController.text);
     } else {
-      // للتسجيل السريع، نمرر الاسم فارغاً لأننا نركز على الإيميل والباسوورد
       error = await AuthService.signUp("", "", _emailController.text, _passController.text);
     }
 
@@ -71,6 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
+      resizeToAvoidBottomInset: true, // 🚀 السماح بالتصغير عند فتح الكيبورد
       body: Stack(
         children: [
           Positioned(top: -100, left: -100, child: _buildBlurredOrb(AppTheme.primaryColor, 350)),
@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           SafeArea(
             child: Center(
-              child: SingleChildScrollView(
+              child: SingleChildScrollView( // 🚀 السماح بالتمرير
                 padding: const EdgeInsets.all(24),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(30),
@@ -156,6 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.2)))),
                             ),
                           ),
+                          const SizedBox(height: 10), // 🚀 مساحة إضافية
                         ],
                       ),
                     ),

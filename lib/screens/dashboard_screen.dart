@@ -131,11 +131,12 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
-  // 🚀 زر التشغيل / الإيقاف المؤقت (لا يحفظ، فقط يوقف العداد مؤقتاً)
   void _toggleTimer() {
     if (_isTimerRunning) {
       _timer?.cancel();
       setState(() => _isTimerRunning = false);
+      _saveStudyTime();
+      setState(() => _seconds = 1500);
     } else {
       setState(() => _isTimerRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -144,14 +145,13 @@ class _HomeTabState extends State<HomeTab> {
         } else {
           timer.cancel();
           setState(() => _isTimerRunning = false);
-          _saveStudyTime(); // يحفظ تلقائياً عند اكتمال 25 دقيقة
+          _saveStudyTime();
           setState(() => _seconds = 1500);
         }
       });
     }
   }
 
-  // 🚀 زر الإيقاف النهائي (Stop) يحفظ الوقت ويعيد الضبط
   void _stopAndSaveTimer() async {
     _timer?.cancel();
     setState(() => _isTimerRunning = false);
@@ -193,6 +193,7 @@ class _HomeTabState extends State<HomeTab> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: true, // 🚀 السماح بالتصغير مع الكيبورد
       appBar: AppBar(
         title: const Text('DIRASA 2TM', style: TextStyle(color: Colors.white, letterSpacing: 2, fontSize: 20)),
         actions: [
@@ -201,6 +202,7 @@ class _HomeTabState extends State<HomeTab> {
         ],
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 10, 24, 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +256,6 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   Row(
                     children: [
-                      // 🚀 زر الإيقاف النهائي (Stop - يحفظ الوقت)
                       GestureDetector(
                         onTap: _stopAndSaveTimer,
                         child: Container(
@@ -264,7 +265,6 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // 🚀 زر التشغيل / الإيقاف المؤقت (Pause)
                       GestureDetector(
                         onTap: _toggleTimer,
                         child: Container(
@@ -344,6 +344,7 @@ class _HomeTabState extends State<HomeTab> {
                 ],
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
