@@ -38,8 +38,52 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   bool _isRecording = false;
   final RegExp _urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
 
+  // 🚀 ذاكرة مؤقتة لصور المستخدمين لتسريع العرض
+  final Map<String, Uint8List?> _avatarCache = {};
+
   @override
   void initState() { super.initState(); _isLocked = widget.isLocked; }
+
+  Future<Uint8List?> _getUserAvatar(String userId) async {
+    if (_avatarCache.containsKey(userId)) return _avatarCache[userId];
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final data = doc.data();
+      if (data != null && data['profileImage'] != null) {
+        final bytes = base64Decode(data['profileImage'] as String);
+        _avatarCache[userId] = bytes;
+        return bytes;
+      }
+    } catch (e) { print("Avatar Load Error: $e"); }
+    _avatarCache[userId] = null;
+    return null;
+  }
+
+  Widget _buildAvatar(String userId, String name) {
+    return FutureBuilder<Uint8List?>(
+      future: _getUserAvatar(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircleAvatar(radius: 16, backgroundColor: Colors.white10, child: Icon(Icons.person, size: 16, color: Colors.white54));
+        }
+        if (snapshot.hasData && snapshot.data != null) {
+          return Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white12, width: 1.5),
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: const Offset(0, 2))],
+            ),
+            child: CircleAvatar(radius: 16, backgroundImage: MemoryImage(snapshot.data!)),
+          );
+        }
+        return CircleAvatar(
+          radius: 16,
+          backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+          child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
+        );
+      },
+    );
+  }
 
   Future<void> _sendMessage({String? text, String? base64Img, String? audioUrl, String type = 'text'}) async {
     if (_isLocked) return;
@@ -107,13 +151,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       Map<String, dynamic> reactions = snapshot.data()?['reactions'] ?? {};
       List<String> users = List<String>.from(reactions[emoji] ?? []);
       if (users.contains(currentId)) users.remove(currentId); else users.add(currentId!);
-      
-      // 🚀 إذا كان التفاعل فارغاً، نحذف المفتاح تماماً
-      if (users.isEmpty) {
-        reactions.remove(emoji);
-      } else {
-        reactions[emoji] = users;
-      }
+      if (users.isEmpty) { reactions.remove(emoji); } else { reactions[emoji] = users; }
       transaction.update(msgRef, {'reactions': reactions});
     });
   }
@@ -158,25 +196,15 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
         title: const Text('تعديل الرسالة', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: editCtrl,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(filled: true, fillColor: AppTheme.bgColor),
-        ),
+        content: TextField(controller: editCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(filled: true, fillColor: AppTheme.bgColor)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () async {
-              if (editCtrl.text.trim().isNotEmpty) {
-                await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).collection('messages').doc(msgId).update({
-                  'text': editCtrl.text.trim(),
-                  'isEdited': true,
-                });
-              }
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('حفظ'),
-          ),
+          ElevatedButton(onPressed: () async {
+            if (editCtrl.text.trim().isNotEmpty) {
+              await FirebaseFirestore.instance.collection('study_rooms').doc(widget.roomId).collection('messages').doc(msgId).update({'text': editCtrl.text.trim(), 'isEdited': true});
+            }
+            if (context.mounted) Navigator.pop(context);
+          }, child: const Text('حفظ')),
         ],
       ),
     );
@@ -199,15 +227,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: ['❤️', '👍', '😂', '🔥', '😮'].map((emoji) {
-                  return GestureDetector(
-                    onTap: () { Navigator.pop(context); _addReaction(msgDoc.id, emoji); },
-                    child: Text(emoji, style: const TextStyle(fontSize: 30)),
-                  );
-                }).toList(),
-              ),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: ['❤️', '👍', '😂', '🔥', '😮'].map((emoji) => GestureDetector(onTap: () { Navigator.pop(context); _addReaction(msgDoc.id, emoji); }, child: Text(emoji, style: const TextStyle(fontSize: 30)))).toList()),
               const Divider(color: Colors.grey),
               ListTile(leading: const Icon(Icons.reply, color: Colors.white), title: const Text('رد', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); setState(() => _replyToMessage = msg); }),
               if (type == 'text') ListTile(leading: const Icon(Icons.copy, color: Colors.white), title: const Text('نسخ النص', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); Clipboard.setData(ClipboardData(text: msg['text'] ?? '')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ النص'))); }),
@@ -282,92 +302,84 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     String? audio = msg['audioUrl'];
                     Map<String, dynamic> reactions = msg['reactions'] ?? {};
                     bool isEdited = msg['isEdited'] ?? false;
-
-                    // 🚀 التحقق من وجود تفاعلات غير فارغة
                     bool hasReactions = reactions.values.any((list) => (list as List).isNotEmpty);
 
-                    return Dismissible(
-                      key: Key(msgDoc.id),
-                      direction: DismissDirection.endToStart, // 🚀 السحب من اليمين لليسار للرد
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        color: Colors.transparent,
-                        child: const Icon(Icons.reply, color: Colors.white70, size: 30),
-                      ),
-                      confirmDismiss: (direction) async {
-                        setState(() => _replyToMessage = msg); // عند السحب، يفتح الرد
-                        return false; // يعود لمكانه الأصلي
-                      },
-                      child: GestureDetector(
-                        onDoubleTap: () => _addReaction(msgDoc.id, '❤️'),
-                        onLongPress: () => _showMessageOptions(msgDoc),
-                        child: Align(
-                          alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(bottom: hasReactions ? 16 : 12), 
-                                padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
-                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                                decoration: type == 'image' ? null : BoxDecoration(color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10)),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (msg['replyTo'] != null)
-                                      Container(
-                                        margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: isMe ? Colors.white70 : AppTheme.primaryColor, width: 3))),
-                                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                          Text(msg['replyTo']['senderName'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                                          Text(msg['replyTo']['text'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                        ]),
-                                      ),
-                                    if (type == 'image' && img != null)
-                                      GestureDetector(
-                                        onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
-                                        child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)),
-                                      )
-                                    else if (type == 'audio' && audio != null)
-                                      AudioPlayerWidget(base64Audio: audio)
-                                    else ...[
-                                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10))]),
-                                      const SizedBox(height: 4),
-                                      _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              // 🚀 شكل الرياكشن الجديد (أكثر أناقة)
-                              if (hasReactions)
-                                Positioned(
-                                  bottom: -10,
-                                  right: isMe ? 16 : null,
-                                  left: isMe ? null : 16,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.cardColor,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5), width: 1),
-                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: reactions.entries.where((e) => (e.value as List).isNotEmpty).map((entry) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                                          child: Text('${entry.key} ${(e.value as List).length}', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                                        );
-                                      }).toList(),
+                    // 🚀 تصميم الرسالة مع الصورة الشخصية
+                    return Row(
+                      mainAxisAlignment: isMe ? MainAxisAlignment.start : MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (isMe) ...[
+                          _buildAvatar(msg['senderId'], msg['senderName'] ?? ''),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Dismissible(
+                            key: Key(msgDoc.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20), color: Colors.transparent, child: const Icon(Icons.reply, color: Colors.white70, size: 30)),
+                            confirmDismiss: (direction) async { setState(() => _replyToMessage = msg); return false; },
+                            child: GestureDetector(
+                              onDoubleTap: () => _addReaction(msgDoc.id, '❤️'),
+                              onLongPress: () => _showMessageOptions(msgDoc),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    margin: EdgeInsets.only(bottom: hasReactions ? 16 : 12), 
+                                    padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
+                                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                                    decoration: type == 'image' ? null : BoxDecoration(color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10)),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (msg['replyTo'] != null)
+                                          Container(
+                                            margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: isMe ? Colors.white70 : AppTheme.primaryColor, width: 3))),
+                                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                              Text(msg['replyTo']['senderName'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                                              Text(msg['replyTo']['text'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            ]),
+                                          ),
+                                        if (type == 'image' && img != null)
+                                          GestureDetector(
+                                            onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
+                                            child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)),
+                                          )
+                                        else if (type == 'audio' && audio != null)
+                                          AudioPlayerWidget(base64Audio: audio)
+                                        else ...[
+                                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10))]),
+                                          const SizedBox(height: 4),
+                                          _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
+                                        ],
+                                      ],
                                     ),
                                   ),
-                                ),
-                            ],
+                                  if (hasReactions)
+                                    Positioned(
+                                      bottom: -10,
+                                      right: isMe ? 16 : null,
+                                      left: isMe ? null : 16,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5), width: 1), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))]),
+                                        child: Row(mainAxisSize: MainAxisSize.min, children: reactions.entries.where((e) => (e.value as List).isNotEmpty).map((entry) {
+                                          return Padding(padding: const EdgeInsets.symmetric(horizontal: 2.0), child: Text('${entry.key} ${(e.value as List).length}', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)));
+                                        }).toList()),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        if (!isMe) ...[
+                          const SizedBox(width: 8),
+                          _buildAvatar(msg['senderId'], msg['senderName'] ?? ''),
+                        ],
+                      ],
                     );
                   },
                 );
