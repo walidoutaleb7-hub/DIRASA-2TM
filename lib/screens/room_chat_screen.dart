@@ -12,6 +12,7 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../widgets/user_avatar.dart'; // 🚀 استدعاء الصورة الجديدة
 import 'conference_screen.dart';
 
 class RoomChatScreen extends StatefulWidget {
@@ -38,52 +39,8 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   bool _isRecording = false;
   final RegExp _urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
 
-  // 🚀 ذاكرة مؤقتة لصور المستخدمين لتسريع العرض
-  final Map<String, Uint8List?> _avatarCache = {};
-
   @override
   void initState() { super.initState(); _isLocked = widget.isLocked; }
-
-  Future<Uint8List?> _getUserAvatar(String userId) async {
-    if (_avatarCache.containsKey(userId)) return _avatarCache[userId];
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      final data = doc.data();
-      if (data != null && data['profileImage'] != null) {
-        final bytes = base64Decode(data['profileImage'] as String);
-        _avatarCache[userId] = bytes;
-        return bytes;
-      }
-    } catch (e) { print("Avatar Load Error: $e"); }
-    _avatarCache[userId] = null;
-    return null;
-  }
-
-  Widget _buildAvatar(String userId, String name) {
-    return FutureBuilder<Uint8List?>(
-      future: _getUserAvatar(userId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircleAvatar(radius: 16, backgroundColor: Colors.white10, child: Icon(Icons.person, size: 16, color: Colors.white54));
-        }
-        if (snapshot.hasData && snapshot.data != null) {
-          return Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white12, width: 1.5),
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: const Offset(0, 2))],
-            ),
-            child: CircleAvatar(radius: 16, backgroundImage: MemoryImage(snapshot.data!)),
-          );
-        }
-        return CircleAvatar(
-          radius: 16,
-          backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-          child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
-        );
-      },
-    );
-  }
 
   Future<void> _sendMessage({String? text, String? base64Img, String? audioUrl, String type = 'text'}) async {
     if (_isLocked) return;
@@ -304,13 +261,12 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     bool isEdited = msg['isEdited'] ?? false;
                     bool hasReactions = reactions.values.any((list) => (list as List).isNotEmpty);
 
-                    // 🚀 تصميم الرسالة مع الصورة الشخصية
                     return Row(
                       mainAxisAlignment: isMe ? MainAxisAlignment.start : MainAxisAlignment.end,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         if (isMe) ...[
-                          _buildAvatar(msg['senderId'], msg['senderName'] ?? ''),
+                          UserAvatar(userId: msg['senderId'], name: msg['senderName'] ?? ''), // 🚀 استخدام الصورة المستقلة
                           const SizedBox(width: 8),
                         ],
                         Flexible(
@@ -359,9 +315,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                   ),
                                   if (hasReactions)
                                     Positioned(
-                                      bottom: -10,
-                                      right: isMe ? 16 : null,
-                                      left: isMe ? null : 16,
+                                      bottom: -10, right: isMe ? 16 : null, left: isMe ? null : 16,
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                         decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5), width: 1), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))]),
@@ -377,7 +331,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                         ),
                         if (!isMe) ...[
                           const SizedBox(width: 8),
-                          _buildAvatar(msg['senderId'], msg['senderName'] ?? ''),
+                          UserAvatar(userId: msg['senderId'], name: msg['senderName'] ?? ''), // 🚀 استخدام الصورة المستقلة
                         ],
                       ],
                     );
@@ -404,17 +358,21 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller, enabled: !_isLocked && !_isRecording, style: const TextStyle(color: Colors.white),
-                      onChanged: (val) => setState(() {}),
+                      // 🚀 إزالة onChanged لمنع التغليتش
                       decoration: InputDecoration(hintText: _isLocked ? 'الروم مغلق...' : (_isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...'), hintStyle: TextStyle(color: _isRecording ? Colors.red : Colors.grey), filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 20)),
                       onSubmitted: (val) => _sendMessage(text: val),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _controller.text.isEmpty && !_isRecording
-                      ? GestureDetector(onTap: _startRecording, child: CircleAvatar(radius: 24, backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: const Icon(Icons.mic, color: Colors.white)))
-                      : _isRecording
-                          ? GestureDetector(onTap: _stopRecording, child: const CircleAvatar(radius: 24, backgroundColor: Colors.red, child: Icon(Icons.stop, color: Colors.white)))
-                          : CircleAvatar(backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage())),
+                  // 🚀 استخدام ValueListenableBuilder لتحديث الزر فقط
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _controller,
+                    builder: (context, value, child) {
+                      if (_isRecording) return GestureDetector(onTap: _stopRecording, child: const CircleAvatar(radius: 24, backgroundColor: Colors.red, child: Icon(Icons.stop, color: Colors.white)));
+                      if (value.text.trim().isEmpty) return GestureDetector(onTap: _isLocked ? null : _startRecording, child: CircleAvatar(radius: 24, backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: const Icon(Icons.mic, color: Colors.white)));
+                      return CircleAvatar(backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage()));
+                    }
+                  ),
                 ],
               ),
             ),
