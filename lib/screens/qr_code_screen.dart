@@ -13,7 +13,6 @@ class QRCodeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('غرفة الاجتماع')),
-      // 🚀 إضافة SafeArea لحماية الزر من شريط التنقل السفلي
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -45,9 +44,9 @@ class QRCodeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
+                // 🚀 الزر بعد التعديل (بدون ارتفاع ثابت)
                 SizedBox(
                   width: double.infinity,
-                  height: 55,
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       String name = await AuthService.getUserName() ?? 'مستخدم';
@@ -64,6 +63,7 @@ class QRCodeScreen extends StatelessWidget {
                     label: const Text('دخول الاجتماع الآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16), // 🚀 الحل
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                   ),

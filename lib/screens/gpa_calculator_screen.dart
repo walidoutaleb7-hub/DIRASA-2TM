@@ -74,7 +74,6 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('حاسبة المعدل الفصلي')),
-      // 🚀 إضافة SafeArea لحماية الزر من شريط التنقل السفلي
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -133,13 +132,18 @@ class _GpaCalculatorScreenState extends State<GpaCalculatorScreen> {
                 },
               ),
               const SizedBox(height: 24),
+              // 🚀 الزر بعد التعديل (بدون ارتفاع ثابت)
               SizedBox(
-                width: double.infinity, height: 55,
+                width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _calculate,
                   icon: const Icon(Icons.calculate, color: Colors.white),
                   label: const Text('احسب المعدل', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor, 
+                    padding: const EdgeInsets.symmetric(vertical: 16), // 🚀 الحل
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

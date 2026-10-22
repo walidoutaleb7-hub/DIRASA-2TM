@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
-      resizeToAvoidBottomInset: true, // 🚀 السماح بالتصغير عند فتح الكيبورد
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Positioned(top: -100, left: -100, child: _buildBlurredOrb(AppTheme.primaryColor, 350)),
@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           SafeArea(
             child: Center(
-              child: SingleChildScrollView( // 🚀 السماح بالتمرير
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(30),
@@ -123,19 +123,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
 
                           const SizedBox(height: 16),
+                          // 🚀 زر الدخول (بدون ارتفاع ثابت)
                           SizedBox(
-                            width: double.infinity, height: 50,
+                            width: double.infinity,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _submit,
-                              style: ElevatedButton.styleFrom(padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
-                              child: Ink(
-                                decoration: BoxDecoration(gradient: AppTheme.primaryGradient, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.4), blurRadius: 20)]),
-                                child: Center(
-                                  child: _isLoading 
-                                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                                    : Text(_isLogin ? 'دخول' : 'إنشاء الحساب', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                backgroundColor: AppTheme.primaryColor,
                               ),
+                              child: _isLoading 
+                                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                                : Text(_isLogin ? 'دخول' : 'إنشاء الحساب', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                             ),
                           ),
                           
@@ -147,16 +147,37 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const Divider(color: Colors.grey),
                           
+                          // 🚀 زر Google (الحل الجذري: بدون ارتفاع ثابت واستخدام Row)
                           SizedBox(
-                            width: double.infinity, height: 50,
-                            child: ElevatedButton.icon(
+                            width: double.infinity,
+                            child: ElevatedButton(
                               onPressed: _isLoading ? null : _googleLogin,
-                              icon: const Icon(Icons.g_mobiledata, color: Colors.white, size: 30),
-                              label: const Text('Google الدخول باستخدام'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.2)))),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.1),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.g_mobiledata, color: Colors.white, size: 28),
+                                  SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      'الدخول باستخدام Google',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 10), // 🚀 مساحة إضافية
+                          const SizedBox(height: 10),
                         ],
                       ),
                     ),

@@ -38,8 +38,6 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرجاء إدخال اسم المادة أولاً')));
       return;
     }
-    
-    // إخفاء الكيبورد قبل فتح التاريخ
     FocusScope.of(context).unfocus();
 
     final DateTime? picked = await showDatePicker(
@@ -78,8 +76,7 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final examDay = DateTime(_examDate!.year, _examDate!.month, _examDate!.day);
-    final difference = examDay.difference(today);
-    return difference.inDays;
+    return examDay.difference(today).inDays;
   }
 
   @override
@@ -87,7 +84,6 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(title: const Text('عداد الامتحانات')),
-      // 🚀 الحل السحري: جعل الشاشة قابلة للتمرير
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -101,13 +97,17 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            // 🚀 الزر بعد التعديل (بدون ارتفاع ثابت)
             SizedBox(
               width: double.infinity,
-              height: 55,
               child: ElevatedButton.icon(
                 onPressed: _pickDate,
                 icon: const Icon(Icons.calendar_month),
-                label: const Text('اختر تاريخ الامتحان'),
+                label: const Text('اختر تاريخ الامتحان', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16), // 🚀 الحل
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
               ),
             ),
             const SizedBox(height: 40),
@@ -116,15 +116,9 @@ class _ExamCountdownScreenState extends State<ExamCountdownScreen> {
               const SizedBox(height: 8),
               Text(_examSubject, style: const TextStyle(color: AppTheme.primaryColor, fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
-              // 🚀 الدائرة المتوهجة
               Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.primaryColor, width: 8),
-                  boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.3), blurRadius: 40, spreadRadius: 10)],
-                ),
+                width: 220, height: 220,
+                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppTheme.primaryColor, width: 8), boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.3), blurRadius: 40, spreadRadius: 10)]),
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
