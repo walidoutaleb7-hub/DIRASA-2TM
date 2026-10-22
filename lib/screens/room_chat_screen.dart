@@ -36,7 +36,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
-
   final RegExp _urlRegExp = RegExp(r'(https?:\/\/[^\s]+)');
 
   @override
@@ -85,8 +84,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
         setState(() => _isRecording = true);
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يجب السماح بالوصول للمايك')));
       }
     } catch (e) { print("Recording Error: $e"); }
   }
@@ -110,7 +107,13 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       Map<String, dynamic> reactions = snapshot.data()?['reactions'] ?? {};
       List<String> users = List<String>.from(reactions[emoji] ?? []);
       if (users.contains(currentId)) users.remove(currentId); else users.add(currentId!);
-      reactions[emoji] = users;
+      
+      // 🚀 إذا كان التفاعل فارغاً، نحذف المفتاح تماماً
+      if (users.isEmpty) {
+        reactions.remove(emoji);
+      } else {
+        reactions[emoji] = users;
+      }
       transaction.update(msgRef, {'reactions': reactions});
     });
   }
@@ -182,7 +185,8 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   void _showMessageOptions(DocumentSnapshot msgDoc) {
     var msg = msgDoc.data() as Map<String, dynamic>;
     bool isMe = msg['senderId'] == currentId;
-    bool isAdmin = currentId == widget.adminId;
+    bool isLegacyRoom = widget.adminId.isEmpty || widget.adminId == 'null';
+    bool isAdmin = (currentId == widget.adminId) || isLegacyRoom;
     String type = msg['type'] ?? 'text';
 
     showModalBottomSheet(
@@ -205,45 +209,12 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 }).toList(),
               ),
               const Divider(color: Colors.grey),
-              ListTile(
-                leading: const Icon(Icons.reply, color: Colors.white),
-                title: const Text('رد', style: TextStyle(color: Colors.white)),
-                onTap: () { Navigator.pop(context); setState(() => _replyToMessage = msg); },
-              ),
-              if (type == 'text')
-                ListTile(
-                  leading: const Icon(Icons.copy, color: Colors.white),
-                  title: const Text('نسخ النص', style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Clipboard.setData(ClipboardData(text: msg['text'] ?? ''));
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ النص')));
-                  },
-                ),
-              if (isMe && type == 'text')
-                ListTile(
-                  leading: const Icon(Icons.edit, color: Colors.blueAccent),
-                  title: const Text('تعديل الرسالة', style: TextStyle(color: Colors.blueAccent)),
-                  onTap: () { Navigator.pop(context); _editMessage(msgDoc.id, msg['text']); },
-                ),
-              if (type == 'image')
-                ListTile(
-                  leading: const Icon(Icons.download, color: Colors.greenAccent),
-                  title: const Text('حفظ الصورة', style: TextStyle(color: Colors.greenAccent)),
-                  onTap: () { Navigator.pop(context); _downloadImage(msg['imageBase64']); },
-                ),
-              if (isMe || isAdmin)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.redAccent),
-                  title: const Text('حذف الرسالة', style: TextStyle(color: Colors.redAccent)),
-                  onTap: () { Navigator.pop(context); _deleteMessage(msgDoc.id); },
-                ),
-              if (isAdmin && !isMe)
-                ListTile(
-                  leading: const Icon(Icons.block, color: Colors.orangeAccent),
-                  title: const Text('حظر العضو', style: TextStyle(color: Colors.orangeAccent)),
-                  onTap: () { Navigator.pop(context); _kickUser(msg['senderId']); },
-                ),
+              ListTile(leading: const Icon(Icons.reply, color: Colors.white), title: const Text('رد', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); setState(() => _replyToMessage = msg); }),
+              if (type == 'text') ListTile(leading: const Icon(Icons.copy, color: Colors.white), title: const Text('نسخ النص', style: TextStyle(color: Colors.white)), onTap: () { Navigator.pop(context); Clipboard.setData(ClipboardData(text: msg['text'] ?? '')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ النص'))); }),
+              if (isMe && type == 'text') ListTile(leading: const Icon(Icons.edit, color: Colors.blueAccent), title: const Text('تعديل الرسالة', style: TextStyle(color: Colors.blueAccent)), onTap: () { Navigator.pop(context); _editMessage(msgDoc.id, msg['text']); }),
+              if (type == 'image') ListTile(leading: const Icon(Icons.download, color: Colors.greenAccent), title: const Text('حفظ الصورة', style: TextStyle(color: Colors.greenAccent)), onTap: () { Navigator.pop(context); _downloadImage(msg['imageBase64']); }),
+              if (isMe || isAdmin) ListTile(leading: const Icon(Icons.delete, color: Colors.redAccent), title: const Text('حذف الرسالة', style: TextStyle(color: Colors.redAccent)), onTap: () { Navigator.pop(context); _deleteMessage(msgDoc.id); }),
+              if (isAdmin && !isMe) ListTile(leading: const Icon(Icons.block, color: Colors.orangeAccent), title: const Text('حظر العضو', style: TextStyle(color: Colors.orangeAccent)), onTap: () { Navigator.pop(context); _kickUser(msg['senderId']); }),
             ],
           ),
         );
@@ -257,48 +228,32 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     int lastMatchEnd = 0;
 
     for (final match in matches) {
-      if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start)));
-      }
+      if (match.start > lastMatchEnd) spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start)));
       final url = match.group(0)!;
-      spans.add(TextSpan(
-        text: url,
-        style: const TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline),
-        recognizer: TapGestureRecognizer()..onTap = () async {
-          final Uri uri = Uri.parse(url);
-          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن فتح الرابط')));
-          }
-        },
-      ));
+      spans.add(TextSpan(text: url, style: const TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline), recognizer: TapGestureRecognizer()..onTap = () async {
+        final Uri uri = Uri.parse(url);
+        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن فتح الرابط')));
+        }
+      }));
       lastMatchEnd = match.end;
     }
-    if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastMatchEnd)));
-    }
-    if (isEdited) {
-      spans.add(const TextSpan(text: ' (معدلة)', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)));
-    }
+    if (lastMatchEnd < text.length) spans.add(TextSpan(text: text.substring(lastMatchEnd)));
+    if (isEdited) spans.add(const TextSpan(text: ' (معدلة)', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)));
 
-    return RichText(
-      text: TextSpan(
-        style: TextStyle(color: isMe ? Colors.white : Colors.white, fontSize: 16),
-        children: spans,
-      ),
-    );
+    return RichText(text: TextSpan(style: TextStyle(color: isMe ? Colors.white : Colors.white, fontSize: 16), children: spans));
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isAdmin = currentId == widget.adminId;
+    bool isLegacyRoom = widget.adminId.isEmpty || widget.adminId == 'null';
+    bool isAdmin = (currentId == widget.adminId) || isLegacyRoom;
+
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.roomName), 
-          if (_isLocked) const Text('مغلق', style: TextStyle(fontSize: 10, color: Colors.red))
-        ]),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.roomName), if (_isLocked) const Text('مغلق', style: TextStyle(fontSize: 10, color: Colors.red))]),
         actions: [
           IconButton(icon: const Icon(Icons.video_camera_front, color: Colors.greenAccent), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ConferenceScreen(conferenceID: widget.roomId, userName: widget.userName)))),
           if (isAdmin) ...[
@@ -328,76 +283,89 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     Map<String, dynamic> reactions = msg['reactions'] ?? {};
                     bool isEdited = msg['isEdited'] ?? false;
 
-                    return GestureDetector(
-                      onDoubleTap: () => _addReaction(msgDoc.id, '❤️'),
-                      onLongPress: () => _showMessageOptions(msgDoc),
-                      child: Align(
-                        alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              margin: EdgeInsets.only(bottom: reactions.isNotEmpty ? 16 : 12), 
-                              padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                              decoration: type == 'image' ? null : BoxDecoration(
-                                color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor, 
-                                borderRadius: BorderRadius.circular(16), 
-                                border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10)
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (msg['replyTo'] != null)
-                                    Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: isMe ? Colors.white70 : AppTheme.primaryColor, width: 3))),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
+                    // 🚀 التحقق من وجود تفاعلات غير فارغة
+                    bool hasReactions = reactions.values.any((list) => (list as List).isNotEmpty);
+
+                    return Dismissible(
+                      key: Key(msgDoc.id),
+                      direction: DismissDirection.endToStart, // 🚀 السحب من اليمين لليسار للرد
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        color: Colors.transparent,
+                        child: const Icon(Icons.reply, color: Colors.white70, size: 30),
+                      ),
+                      confirmDismiss: (direction) async {
+                        setState(() => _replyToMessage = msg); // عند السحب، يفتح الرد
+                        return false; // يعود لمكانه الأصلي
+                      },
+                      child: GestureDetector(
+                        onDoubleTap: () => _addReaction(msgDoc.id, '❤️'),
+                        onLongPress: () => _showMessageOptions(msgDoc),
+                        child: Align(
+                          alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                margin: EdgeInsets.only(bottom: hasReactions ? 16 : 12), 
+                                padding: type == 'image' ? EdgeInsets.zero : const EdgeInsets.all(12),
+                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                                decoration: type == 'image' ? null : BoxDecoration(color: isMe ? AppTheme.primaryColor.withOpacity(0.2) : AppTheme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: isMe ? AppTheme.primaryColor : Colors.white10)),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (msg['replyTo'] != null)
+                                      Container(
+                                        margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: isMe ? Colors.white70 : AppTheme.primaryColor, width: 3))),
+                                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                           Text(msg['replyTo']['senderName'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
                                           Text(msg['replyTo']['text'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                        ],
+                                        ]),
                                       ),
-                                    ),
-                                  if (type == 'image' && img != null)
-                                    GestureDetector(
-                                      onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
-                                      child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)),
-                                    )
-                                  else if (type == 'audio' && audio != null)
-                                    AudioPlayerWidget(base64Audio: audio)
-                                  else ...[
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
+                                    if (type == 'image' && img != null)
+                                      GestureDetector(
+                                        onTap: () => showDialog(context: context, builder: (c) => Dialog(backgroundColor: Colors.transparent, child: InteractiveViewer(child: Image.memory(base64Decode(img), fit: BoxFit.contain)))),
+                                        child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.memory(base64Decode(img), width: 220, fit: BoxFit.cover, cacheWidth: 400)),
+                                      )
+                                    else if (type == 'audio' && audio != null)
+                                      AudioPlayerWidget(base64Audio: audio)
+                                    else ...[
+                                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(msg['senderName'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10))]),
+                                      const SizedBox(height: 4),
+                                      _buildTextWithLinks(msg['text'] ?? '', isMe, isEdited),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ),
-                            if (reactions.isNotEmpty)
-                              Positioned(
-                                bottom: -8,
-                                right: isMe ? 16 : null,
-                                left: isMe ? null : 16,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white24)),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: reactions.entries.where((e) => (e.value as List).isNotEmpty).map((entry) {
-                                      return Text('${entry.key} ${(entry.value as List).length}', style: const TextStyle(fontSize: 12, color: Colors.white));
-                                    }).toList(),
-                                  ),
                                 ),
                               ),
-                          ],
+                              // 🚀 شكل الرياكشن الجديد (أكثر أناقة)
+                              if (hasReactions)
+                                Positioned(
+                                  bottom: -10,
+                                  right: isMe ? 16 : null,
+                                  left: isMe ? null : 16,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.cardColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5), width: 1),
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: reactions.entries.where((e) => (e.value as List).isNotEmpty).map((entry) {
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                                          child: Text('${entry.key} ${(e.value as List).length}', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -408,14 +376,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           ),
           if (_replyToMessage != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppTheme.cardColor,
-              child: Row(
-                children: [
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('الرد على:', style: TextStyle(color: AppTheme.primaryColor, fontSize: 10)), Text(_replyToMessage!['text'] ?? 'صورة', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)])),
-                  IconButton(icon: const Icon(Icons.close, color: Colors.red), onPressed: () => setState(() => _replyToMessage = null)),
-                ],
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: AppTheme.cardColor,
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('الرد على:', style: TextStyle(color: AppTheme.primaryColor, fontSize: 10)), Text(_replyToMessage!['text'] ?? 'صورة', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)])),
+                IconButton(icon: const Icon(Icons.close, color: Colors.red), onPressed: () => setState(() => _replyToMessage = null)),
+              ]),
             ),
           if (_isUploading) const LinearProgressIndicator(color: AppTheme.primaryColor),
           SafeArea(
@@ -427,27 +392,16 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller, enabled: !_isLocked && !_isRecording, style: const TextStyle(color: Colors.white),
-                      // 🚀 إضافة onChanged لتحديث الحالة عند كل حرف
                       onChanged: (val) => setState(() {}),
-                      decoration: InputDecoration(
-                        hintText: _isLocked ? 'الروم مغلق...' : (_isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...'), 
-                        hintStyle: TextStyle(color: _isRecording ? Colors.red : Colors.grey), 
-                        filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 20)
-                      ),
+                      decoration: InputDecoration(hintText: _isLocked ? 'الروم مغلق...' : (_isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...'), hintStyle: TextStyle(color: _isRecording ? Colors.red : Colors.grey), filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 20)),
                       onSubmitted: (val) => _sendMessage(text: val),
                     ),
                   ),
                   const SizedBox(width: 8),
                   _controller.text.isEmpty && !_isRecording
-                      ? GestureDetector(
-                          onTap: _startRecording,
-                          child: CircleAvatar(radius: 24, backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: const Icon(Icons.mic, color: Colors.white)),
-                        )
+                      ? GestureDetector(onTap: _startRecording, child: CircleAvatar(radius: 24, backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: const Icon(Icons.mic, color: Colors.white)))
                       : _isRecording
-                          ? GestureDetector(
-                              onTap: _stopRecording,
-                              child: const CircleAvatar(radius: 24, backgroundColor: Colors.red, child: Icon(Icons.stop, color: Colors.white)),
-                            )
+                          ? GestureDetector(onTap: _stopRecording, child: const CircleAvatar(radius: 24, backgroundColor: Colors.red, child: Icon(Icons.stop, color: Colors.white)))
                           : CircleAvatar(backgroundColor: _isLocked ? Colors.grey : AppTheme.primaryColor, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _isLocked ? null : () => _sendMessage())),
                 ],
               ),
@@ -503,34 +457,21 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 220,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      width: 220, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: AppTheme.bgColor, borderRadius: BorderRadius.circular(20)),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: AppTheme.primaryColor, size: 32),
-            onPressed: () async { if (_isPlaying) await _player.pause(); else await _player.play(); },
-          ),
+          IconButton(icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: AppTheme.primaryColor, size: 32), onPressed: () async { if (_isPlaying) await _player.pause(); else await _player.play(); }),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min,
               children: [
-                LinearProgressIndicator(
-                  value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0,
-                  backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                  minHeight: 4,
-                ),
+                LinearProgressIndicator(value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0, backgroundColor: Colors.white24, valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor), minHeight: 4),
                 const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(_formatDuration(_position), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                    Text(_formatDuration(_duration), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(_formatDuration(_position), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(_formatDuration(_duration), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ]),
               ],
             ),
           ),

@@ -113,46 +113,6 @@ class _HomeTabState extends State<HomeTab> {
   final TextEditingController _joinController = TextEditingController();
   bool _isLoading = true;
 
-  // 🚀 30 نصيحة تحفيزية (تتغير كل يوم حسب تاريخ الشهر)
-  final List<String> _quotes = [
-    "النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.",
-    "لا تنتظر الإلهام، ابدأ وسيأتي الإلهام أثناء العمل.",
-    "الدراسة اليوم هي راحة الغد.",
-    "كل دقيقة تركيز تقربك من هدفك.",
-    "من جدّ وجد، ومن زرع حصد.",
-    "لا تخف من الفشل، بل خف من ألا تحاول.",
-    "العلم نور والجهل ظلام.",
-    "النجاح لا يأتي إليك، بل تذهب إليه.",
-    "اجعل من تعبك اليوم فخراً لغدك.",
-    "الطريق إلى القمة مليء بالصعاب، لكن المنظر يستحق.",
-    "لا تقارن نفسك بالآخرين، قارن نفسك بنفسك بالأمس.",
-    "الاستمرارية أهم من الكمال.",
-    "اقرأ صفحة واحدة كل يوم، وستنهي كتاباً في شهر.",
-    "الوقت هو أغلى ما تملك، فلا تضيعه.",
-    "الفشل ليس نهاية الطريق، بل بداية التعلم.",
-    "كل خبير كان يوماً مبتدئاً.",
-    "ثق بنفسك، فأنت أقوى مما تظن.",
-    "العقول العظيمة تناقش الأفكار، والعقول الصغيرة تناقش الأشخاص.",
-    "التركيز هو سر الإنجاز.",
-    "لا تنتظر الفرصة، بل اصنعها.",
-    "من يريد النجاح يجد طريقاً، ومن يريد الأعذار يجد حجة.",
-    "القراءة غذاء العقل.",
-    "افعل شيئاً اليوم يفتخر به مستقبلك.",
-    "النجاح ليس صدفة، بل نتيجة جهد متواصل.",
-    "لا تستسلم، فالبدايات دائماً صعبة.",
-    "التعلم رحلة، لا محطة وصول.",
-    "كل صباح فرصة جديدة للبدء من جديد.",
-    "العمل الجاد يهزم الموهبة عندما لا تعمل الموهبة بجد.",
-    "أنت أقدر مما تتخيل، وأذكى مما تعتقد.",
-    "لا تنتظر أن تكون جاهزاً، ابدأ وستتعلم في الطريق.",
-  ];
-
-  String get _dailyQuote {
-    // 🚀 تغيير النصيحة تلقائياً كل 24 ساعة حسب يوم الشهر
-    final dayIndex = DateTime.now().day % _quotes.length;
-    return _quotes[dayIndex];
-  }
-
   int _seconds = 1500;
   bool _isTimerRunning = false;
   Timer? _timer;
@@ -171,12 +131,11 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
+  // 🚀 زر التشغيل / الإيقاف المؤقت (لا يحفظ، فقط يوقف العداد مؤقتاً)
   void _toggleTimer() {
     if (_isTimerRunning) {
       _timer?.cancel();
       setState(() => _isTimerRunning = false);
-      _saveStudyTime();
-      setState(() => _seconds = 1500);
     } else {
       setState(() => _isTimerRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -185,16 +144,18 @@ class _HomeTabState extends State<HomeTab> {
         } else {
           timer.cancel();
           setState(() => _isTimerRunning = false);
-          _saveStudyTime();
+          _saveStudyTime(); // يحفظ تلقائياً عند اكتمال 25 دقيقة
           setState(() => _seconds = 1500);
         }
       });
     }
   }
 
-  void _resetTimer() async {
+  // 🚀 زر الإيقاف النهائي (Stop) يحفظ الوقت ويعيد الضبط
+  void _stopAndSaveTimer() async {
     _timer?.cancel();
     setState(() => _isTimerRunning = false);
+    await _saveStudyTime();
     setState(() => _seconds = 1500);
   }
 
@@ -205,13 +166,9 @@ class _HomeTabState extends State<HomeTab> {
         await FirebaseFirestore.instance.collection('users').doc(AuthService.currentUserId).update({
           'studyTime': FieldValue.increment(studiedSeconds)
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedSeconds ثانية دراسة!')));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ $studiedSeconds ثانية دراسة!')));
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الحفظ: $e')));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الحفظ: $e')));
       }
     }
   }
@@ -256,9 +213,7 @@ class _HomeTabState extends State<HomeTab> {
                   studyTime = (snapshot.data!.data() as Map<String, dynamic>)['studyTime'] ?? 0;
                 }
                 int minutes = studyTime ~/ 60;
-                String displayTime = minutes >= 60 
-                    ? '${minutes ~/ 60} ساعة و ${minutes % 60} دقيقة' 
-                    : (studyTime < 60 ? '$studyTime ثانية' : '$minutes دقيقة');
+                String displayTime = minutes >= 60 ? '${minutes ~/ 60} ساعة و ${minutes % 60} دقيقة' : (studyTime < 60 ? '$studyTime ثانية' : '$minutes دقيقة');
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,8 +254,9 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   Row(
                     children: [
+                      // 🚀 زر الإيقاف النهائي (Stop - يحفظ الوقت)
                       GestureDetector(
-                        onTap: _resetTimer,
+                        onTap: _stopAndSaveTimer,
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.redAccent.withOpacity(0.4), blurRadius: 10)]),
@@ -308,6 +264,7 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // 🚀 زر التشغيل / الإيقاف المؤقت (Pause)
                       GestureDetector(
                         onTap: _toggleTimer,
                         child: Container(
@@ -327,7 +284,6 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 20),
 
-            // 🚀 بطاقة النصيحة اليومية (تتغير كل يوم)
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -339,7 +295,7 @@ class _HomeTabState extends State<HomeTab> {
                 children: [
                   const Icon(Icons.lightbulb_outline, color: AppTheme.secondaryColor, size: 30),
                   const SizedBox(width: 16),
-                  Expanded(child: Text(_dailyQuote, style: const TextStyle(color: Colors.white, fontSize: 14, fontStyle: FontStyle.italic, height: 1.5))),
+                  Expanded(child: Text("النجاح هو مجموع جهود صغيرة تتكرر يوماً بعد يوم.", style: const TextStyle(color: Colors.white, fontSize: 14, fontStyle: FontStyle.italic, height: 1.5))),
                 ],
               ),
             ),
@@ -380,18 +336,11 @@ class _HomeTabState extends State<HomeTab> {
                     child: TextField(
                       controller: _joinController,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'أدخل كود الغرفة هنا...',
-                        hintStyle: TextStyle(color: Colors.grey),
-                        border: InputBorder.none,
-                      ),
+                      decoration: const InputDecoration(hintText: 'أدخل كود الغرفة هنا...', hintStyle: TextStyle(color: Colors.grey), border: InputBorder.none),
                       onSubmitted: _joinRoom,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios, color: AppTheme.primaryColor),
-                    onPressed: () => _joinRoom(_joinController.text),
-                  ),
+                  IconButton(icon: const Icon(Icons.arrow_forward_ios, color: AppTheme.primaryColor), onPressed: () => _joinRoom(_joinController.text)),
                 ],
               ),
             ),
@@ -405,20 +354,8 @@ class _HomeTabState extends State<HomeTab> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: color.withOpacity(0.3)),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 40),
-            const SizedBox(height: 12),
-            Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
+        decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: color.withOpacity(0.3)), boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 10)]),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: color, size: 40), const SizedBox(height: 12), Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))]),
       ),
     );
   }
