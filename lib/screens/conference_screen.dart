@@ -117,6 +117,10 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
         userName: widget.userName,
         conferenceID: widget.conferenceID,
         config: ZegoUIKitPrebuiltVideoConferenceConfig(
+          // 🚀 الدخول بكاميرا ومايك مغلقين لحماية الخصوصية
+          turnOnCameraWhenJoining: false,
+          turnOnMicrophoneWhenJoining: false,
+          
           video: ZegoUIKitVideoConfig.preset1080P(),
           bottomMenuBarConfig: ZegoBottomMenuBarConfig(
             buttons: [
