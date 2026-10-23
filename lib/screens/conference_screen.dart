@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zego_uikit_prebuilt_video_conference/zego_uikit_prebuilt_video_conference.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ConferenceScreen extends StatefulWidget {
   final String conferenceID;
@@ -19,7 +20,6 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
   int? _appID;
   String? _appSign;
 
-  // 🚀 متغيرات الأنميشن
   bool _isLeaving = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
@@ -28,11 +28,9 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    // إعداد الأنميشن
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animController, curve: Curves.easeIn));
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutBack));
-    
     _initializeCall();
   }
 
@@ -62,18 +60,16 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
     }
   }
 
-  // 🚀 دالة إظهار الأنميشن قبل الخروج
   Future<void> _showLeaveAnimation() async {
     if (_isLeaving) return;
     setState(() => _isLeaving = true);
-    _animController.forward(); // تشغيل الأنميشن
-    await Future.delayed(const Duration(seconds: 2)); // انتظار ثانيتين
-    if (mounted) Navigator.pop(context); // الخروج للشاشة السابقة
+    _animController.forward();
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 إذا كان المستخدم يغادر، نعرض شاشة الأنميشن
     if (_isLeaving) {
       return Scaffold(
         backgroundColor: const Color(0xFF000000),
@@ -87,11 +83,7 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
                 children: [
                   Container(
                     padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.red.withOpacity(0.3), width: 2),
-                    ),
+                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle, border: Border.all(color: Colors.red.withOpacity(0.3), width: 2)),
                     child: const Icon(Icons.call_end, color: Colors.redAccent, size: 60),
                   ),
                   const SizedBox(height: 30),
@@ -109,18 +101,20 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
     if (_isLoading) return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: Color(0xFF00F0FF))));
     if (_errorMessage != null) return Scaffold(backgroundColor: Colors.black, body: Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.white))));
 
+    // 🚀 الحل المضمون: استخدام uid من Firebase لضمان أن كل مستخدم فريد 100%
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final String uniqueUserID = currentUser?.uid ?? widget.userName.replaceAll(' ', '_');
+
     return SafeArea(
       child: ZegoUIKitPrebuiltVideoConference(
         appID: _appID!,
         appSign: _appSign!,
-        userID: widget.userName.replaceAll(' ', '_'),
+        userID: uniqueUserID, 
         userName: widget.userName,
         conferenceID: widget.conferenceID,
         config: ZegoUIKitPrebuiltVideoConferenceConfig(
-          // 🚀 الدخول بكاميرا ومايك مغلقين لحماية الخصوصية
           turnOnCameraWhenJoining: false,
           turnOnMicrophoneWhenJoining: false,
-          
           video: ZegoUIKitVideoConfig.preset1080P(),
           bottomMenuBarConfig: ZegoBottomMenuBarConfig(
             buttons: [
@@ -129,13 +123,12 @@ class _ConferenceScreenState extends State<ConferenceScreen> with SingleTickerPr
               ZegoMenuBarButtonName.toggleMicrophoneButton,
               ZegoMenuBarButtonName.toggleCameraButton,
               ZegoMenuBarButtonName.switchCameraButton,
-              ZegoMenuBarButtonName.leaveButton, // 🚀 زر الخروج
+              ZegoMenuBarButtonName.leaveButton,
             ],
           ),
-          // 🚀 ربط زر الخروج بدالة الأنميشن
           onLeaveConfirmation: (context) async {
             _showLeaveAnimation();
-            return false; // نمنع Zego من الخروج المفاجئ، لنتحكم نحن بالأنميشن
+            return false;
           },
         ),
       ),

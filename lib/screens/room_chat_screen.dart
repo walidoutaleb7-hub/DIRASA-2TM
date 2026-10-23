@@ -12,7 +12,7 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
-import '../widgets/user_avatar.dart'; // 🚀 استدعاء الصورة الجديدة
+import '../widgets/user_avatar.dart';
 import 'conference_screen.dart';
 
 class RoomChatScreen extends StatefulWidget {
@@ -48,8 +48,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     if (msgText.isEmpty && base64Img == null && audioUrl == null) return;
     if (base64Img == null && audioUrl == null) _controller.clear();
     
-    setState(() => _replyToMessage = null);
+    // 🚀 1. إخفاء الكيبورد فوراً قبل الإرسال
     FocusScope.of(context).unfocus();
+    
+    Map<String, dynamic>? localReply = _replyToMessage;
+    setState(() => _replyToMessage = null);
 
     Map<String, dynamic> msgData = {
       'senderId': currentId, 'senderName': widget.userName, 'text': msgText,
@@ -57,10 +60,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       'reactions': {}, 'isEdited': false, 'time': FieldValue.serverTimestamp(),
     };
 
-    if (_replyToMessage != null) {
+    // 🚀 2. إصلاح الرد ليظهر فوق الرسالة
+    if (localReply != null) {
       msgData['replyTo'] = {
-        'text': _replyToMessage!['text'] ?? 'صورة',
-        'senderName': _replyToMessage!['senderId'] == currentId ? 'أنت' : _replyToMessage!['senderName'],
+        'text': localReply['text'] ?? 'صورة',
+        'senderName': localReply['senderId'] == currentId ? 'أنت' : localReply['senderName'],
       };
     }
 
@@ -266,7 +270,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         if (isMe) ...[
-                          UserAvatar(userId: msg['senderId'], name: msg['senderName'] ?? ''), // 🚀 استخدام الصورة المستقلة
+                          UserAvatar(userId: msg['senderId'], name: msg['senderName'] ?? ''),
                           const SizedBox(width: 8),
                         ],
                         Flexible(
@@ -289,6 +293,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        // 🚀 3. عرض الرد بشكل صحيح
                                         if (msg['replyTo'] != null)
                                           Container(
                                             margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(8),
@@ -331,7 +336,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                         ),
                         if (!isMe) ...[
                           const SizedBox(width: 8),
-                          UserAvatar(userId: msg['senderId'], name: msg['senderName'] ?? ''), // 🚀 استخدام الصورة المستقلة
+                          UserAvatar(userId: msg['senderId'], name: msg['senderName'] ?? ''),
                         ],
                       ],
                     );
@@ -358,13 +363,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller, enabled: !_isLocked && !_isRecording, style: const TextStyle(color: Colors.white),
-                      // 🚀 إزالة onChanged لمنع التغليتش
                       decoration: InputDecoration(hintText: _isLocked ? 'الروم مغلق...' : (_isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...'), hintStyle: TextStyle(color: _isRecording ? Colors.red : Colors.grey), filled: true, fillColor: AppTheme.bgColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 20)),
                       onSubmitted: (val) => _sendMessage(text: val),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // 🚀 استخدام ValueListenableBuilder لتحديث الزر فقط
                   ValueListenableBuilder<TextEditingValue>(
                     valueListenable: _controller,
                     builder: (context, value, child) {
